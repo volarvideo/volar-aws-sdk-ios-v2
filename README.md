@@ -1,6 +1,6 @@
-## Modifications
+## Volar Modifications
 
-** AWSiOSSDKv2
+**AWSiOSSDKv2**
 
 * Changed project target to OSX
 * Changed Cocoa Pods to Submodules
@@ -19,7 +19,7 @@
 	* Completely removed 'Mobile Analytics' from 'Compile Sources'
 	* Handful of references to UIDevice for system info. Replaced with static values.
 
-** Our Project
+**Our Project**
 
 * Added AWS project to 'Third Party' group, but do not add it to any targets
 * Added AWS to 'Target Dependencies'
