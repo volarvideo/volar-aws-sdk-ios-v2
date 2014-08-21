@@ -4,20 +4,20 @@
 
 * Changed project target to OSX
 * Changed Cocoa Pods to Submodules
-..* Switched from Bolts to BoltsTask (supports both iOS and OSX)
-..* CSURITemplate
-..* GZIP
-..* Mantle
-..* TMCache
-..* UICKeyChainStore
-..* XMLDictionary
+	* Switched from Bolts to BoltsTask (supports both iOS and OSX)
+	* CSURITemplate
+	* GZIP
+	* Mantle
+	* TMCache
+	* UICKeyChainStore
+	* XMLDictionary
 * Included Mantle as project
-..* Added Mantle to 'Target Dependencies'
-..* Added Mantle to 'Link Binary With Libraries'
-..* Added '$(BUILT_PRODUCTS_DIR)' to 'Header Search Paths'
+	* Added Mantle to 'Target Dependencies'
+	* Added Mantle to 'Link Binary With Libraries'
+	* Added '$(BUILT_PRODUCTS_DIR)' to 'Header Search Paths'
 * Removed all references to UIKit
-..* Completely removed 'Mobile Analytics' from 'Compile Sources'
-..* Handful of references to UIDevice for system info. Replaced with static values.
+	* Completely removed 'Mobile Analytics' from 'Compile Sources'
+	* Handful of references to UIDevice for system info. Replaced with static values.
 
 ** Our Project
 
