@@ -1,3 +1,32 @@
+## Modifications
+
+** AWSiOSSDKv2
+
+* Changed project target to OSX
+* Changed Cocoa Pods to Submodules
+..* Switched from Bolts to BoltsTask (supports both iOS and OSX)
+..* CSURITemplate
+..* GZIP
+..* Mantle
+..* TMCache
+..* UICKeyChainStore
+..* XMLDictionary
+* Included Mantle as project
+..* Added Mantle to 'Target Dependencies'
+..* Added Mantle to 'Link Binary With Libraries'
+..* Added '$(BUILT_PRODUCTS_DIR)' to 'Header Search Paths'
+* Removed all references to UIKit
+..* Completely removed 'Mobile Analytics' from 'Compile Sources'
+..* Handful of references to UIDevice for system info. Replaced with static values.
+
+** Our Project
+
+* Added AWS project to 'Third Party' group, but do not add it to any targets
+* Added AWS to 'Target Dependencies'
+* Added AWS to 'Link Binary With Libraries'
+* Added '$(BUILT_PRODUCTS_DIR)' to 'Header Search Paths'
+* Added resources from AWS to 'Copy Bundle Resources' (see AWS podspec for requisite resources)
+
 **This is a developer preview of the AWS SDK for iOS. The repository name may change when the SDK goes out of the preview.**
 
 # Version 2 of the AWS SDK for iOS Developer Preview
@@ -33,6 +62,7 @@ it simply add the following line to your **Podfile**:
 The detailed instructions are available at [Setup the SDK for iOS](http://docs.aws.amazon.com/mobile/sdkforios/developerguide/setup.html).
 
 ## Getting Started is Easy Using Swift
+
 
 It is easy to use the AWS SDK for iOS with Swift. Please see five simple steps below to get started with Swift.
 
@@ -94,7 +124,9 @@ It is easy to use the AWS SDK for iOS with Swift. Please see five simple steps b
 	        return nil;
 	    }];
 
-## Talk to UsThis is a Developer Preview, and we will make changes based on your feedback. Visit the [Issues](/aws/aws-ask-ios-v2/issues) to leave feedback and to connect with other users of the SDK.
+## Talk to Us
+This is a Developer Preview, and we will make changes based on your feedback. Visit the [Issues](/aws/aws-ask-ios-v2/issues) to leave feedback and to connect with other users of the SDK.
+
 
 ## Author
 
