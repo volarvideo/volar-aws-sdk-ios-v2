@@ -14,7 +14,6 @@
  */
 
 #import "AWSClientContext.h"
-#import <UIKit/UIKit.h>
 #import <sys/types.h>
 #import <sys/sysctl.h>
 #import "AZLogging.h"
@@ -59,20 +58,16 @@ NSString *const AWSClientContextUnknown = @"Unknown";
             _appName = AWSClientContextUnknown;
         }
 
-        UIDevice *currentDevice = [UIDevice currentDevice];
-        _devicePlatformVersion = [currentDevice systemVersion];
         if (!_devicePlatformVersion) {
             _devicePlatformVersion = AWSClientContextUnknown;
         }
 
-        _devicePlatform = [currentDevice systemName];
         if (!_devicePlatform) {
             _devicePlatform = AWSClientContextUnknown;
         }
 
         _deviceManufacturer = AWSClientContextManufacturer;
 
-        _deviceModel = [currentDevice model];
         if (!_deviceModel) {
             _deviceModel = AWSClientContextUnknown;
         }
