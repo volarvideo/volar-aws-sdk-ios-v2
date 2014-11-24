@@ -17,6 +17,8 @@
 
 #import "AIDeliveryIntegrationTests.h"
 #import "GZIP.h"
+#import "AWSCategory.h"
+#import "AWSMobileAnalyticsERS.h"
 
 @interface DeliveryBlockingInterceptor : BlockingInterceptor
 
@@ -66,7 +68,7 @@
 - (BOOL)existsEventsFile
 {
     AWSMobileAnalyticsDefaultFileManager* fileManager = [[_context system] fileManager];
-    NSString *filename = [AIEventsDirectoryName stringByAppendingPathComponent:AIEventsFilename];
+    NSString *filename = [AWSEventsDirectoryName stringByAppendingPathComponent:AWSEventsFilename];
     AWSMobileAnalyticsFile* file = [[AWSMobileAnalyticsFile alloc] initWithFileMananager:[NSFileManager defaultManager]
                                               withParent:fileManager.rootFile
                                            withChildPath:filename];
@@ -76,7 +78,7 @@
 - (void)deleteEventsFile
 {
     AWSMobileAnalyticsDefaultFileManager* fileManager = [[_context system] fileManager];
-    NSString *filename = [AIEventsDirectoryName stringByAppendingPathComponent:AIEventsFilename];
+    NSString *filename = [AWSEventsDirectoryName stringByAppendingPathComponent:AWSEventsFilename];
     AWSMobileAnalyticsFile* file = [[AWSMobileAnalyticsFile alloc] initWithFileMananager:[NSFileManager defaultManager]
                                               withParent:fileManager.rootFile
                                            withChildPath:filename];
@@ -124,9 +126,12 @@
     
     id<AWSMobileAnalyticsDeliveryClient> deliveryClient = [AWSMobileAnalyticsDefaultDeliveryClient deliveryClientWithContext:_context
                                                                              withWanDelivery:NO];
-    id<AWSMobileAnalyticsEventClient> eventClient = [AWSMobileAnalyticsDefaultEventClient eventClientWithContext:_context
+    id<AWSMobileAnalyticsEventClient> eventClient = [[AWSMobileAnalyticsDefaultEventClient alloc] initWithContext:_context
                                                               withDeliveryClient:deliveryClient
                                                            allowsEventCollection:YES];
+    
+    [eventClient addGlobalAttribute:@"test-seesion-id-value" forKey:AWSSessionIDAttributeKey];
+    [eventClient addGlobalAttribute:@"test-start-timstamp-value" forKey:AWSSessionStartTimeAttributeKey];
     
     BlockingInterceptor* interceptor = [[BlockingInterceptor alloc] init];
     [interceptor setExpectedRequestURL:[NSURL URLWithString:[BASE_URL stringByAppendingFormat:@"%@/events", APP_KEY]]];
@@ -157,9 +162,12 @@
     
     id<AWSMobileAnalyticsDeliveryClient> deliveryClient = [AWSMobileAnalyticsDefaultDeliveryClient deliveryClientWithContext:_context
                                                                      withWanDelivery:NO];
-    id<AWSMobileAnalyticsEventClient> eventClient = [AWSMobileAnalyticsDefaultEventClient eventClientWithContext:_context
+    id<AWSMobileAnalyticsEventClient> eventClient = [[AWSMobileAnalyticsDefaultEventClient alloc] initWithContext:_context
                                                               withDeliveryClient:deliveryClient
                                                            allowsEventCollection:YES];
+    
+    [eventClient addGlobalAttribute:@"test-seesion-id-value" forKey:AWSSessionIDAttributeKey];
+    [eventClient addGlobalAttribute:@"test-start-timstamp-value" forKey:AWSSessionStartTimeAttributeKey];
     
     BlockingInterceptor* interceptor = [[BlockingInterceptor alloc] init];
     [interceptor setExpectedRequestURL:[NSURL URLWithString:[BASE_URL stringByAppendingFormat:@"%@/events", APP_KEY]]];
@@ -199,9 +207,12 @@
     
     id<AWSMobileAnalyticsDeliveryClient> deliveryClient = [AWSMobileAnalyticsDefaultDeliveryClient deliveryClientWithContext:_context
                                                                              withWanDelivery:YES];
-    id<AWSMobileAnalyticsEventClient> eventClient = [AWSMobileAnalyticsDefaultEventClient eventClientWithContext:_context
+    id<AWSMobileAnalyticsEventClient> eventClient = [[AWSMobileAnalyticsDefaultEventClient alloc] initWithContext:_context
                                                               withDeliveryClient:deliveryClient
                                                            allowsEventCollection:YES];
+    
+    [eventClient addGlobalAttribute:@"test-seesion-id-value" forKey:AWSSessionIDAttributeKey];
+    [eventClient addGlobalAttribute:@"test-start-timstamp-value" forKey:AWSSessionStartTimeAttributeKey];
     
     BlockingInterceptor* interceptor = [[BlockingInterceptor alloc] init];
     [interceptor setExpectedRequestURL:[NSURL URLWithString:[BASE_URL stringByAppendingFormat:@"%@/events", APP_KEY]]];
@@ -239,9 +250,12 @@
     
     id<AWSMobileAnalyticsDeliveryClient> deliveryClient = [AWSMobileAnalyticsDefaultDeliveryClient deliveryClientWithContext:_context
                                                                              withWanDelivery:NO];
-    id<AWSMobileAnalyticsEventClient> eventClient = [AWSMobileAnalyticsDefaultEventClient eventClientWithContext:_context
+    id<AWSMobileAnalyticsEventClient> eventClient = [[AWSMobileAnalyticsDefaultEventClient alloc] initWithContext:_context
                                                               withDeliveryClient:deliveryClient
                                                            allowsEventCollection:YES];
+    
+    [eventClient addGlobalAttribute:@"test-seesion-id-value" forKey:AWSSessionIDAttributeKey];
+    [eventClient addGlobalAttribute:@"test-start-timstamp-value" forKey:AWSSessionStartTimeAttributeKey];
     
     BlockingInterceptor* interceptor = [[BlockingInterceptor alloc] init];
     [interceptor setExpectedRequestURL:[NSURL URLWithString:[BASE_URL stringByAppendingFormat:@"%@/events", APP_KEY]]];
@@ -281,9 +295,12 @@
     
     id<AWSMobileAnalyticsDeliveryClient> deliveryClient = [AWSMobileAnalyticsDefaultDeliveryClient deliveryClientWithContext:_context
                                                                              withWanDelivery:NO];
-    id<AWSMobileAnalyticsEventClient> eventClient = [AWSMobileAnalyticsDefaultEventClient eventClientWithContext:_context
+    id<AWSMobileAnalyticsEventClient> eventClient = [[AWSMobileAnalyticsDefaultEventClient alloc] initWithContext:_context
                                                               withDeliveryClient:deliveryClient
                                                            allowsEventCollection:YES];
+    
+    [eventClient addGlobalAttribute:@"test-seesion-id-value" forKey:AWSSessionIDAttributeKey];
+    [eventClient addGlobalAttribute:@"test-start-timstamp-value" forKey:AWSSessionStartTimeAttributeKey];
     
     BlockingInterceptor* interceptor = [[BlockingInterceptor alloc] init];
     [interceptor setExpectedRequestURL:[NSURL URLWithString:[BASE_URL stringByAppendingFormat:@"%@/events", APP_KEY]]];
@@ -319,9 +336,12 @@
     
     id<AWSMobileAnalyticsDeliveryClient> deliveryClient = [AWSMobileAnalyticsDefaultDeliveryClient deliveryClientWithContext:_context
                                                                              withWanDelivery:NO];
-    id<AWSMobileAnalyticsEventClient> eventClient = [AWSMobileAnalyticsDefaultEventClient eventClientWithContext:_context
+    id<AWSMobileAnalyticsEventClient> eventClient = [[AWSMobileAnalyticsDefaultEventClient alloc] initWithContext:_context
                                                               withDeliveryClient:deliveryClient
                                                            allowsEventCollection:YES];
+    
+    [eventClient addGlobalAttribute:@"test-seesion-id-value" forKey:AWSSessionIDAttributeKey];
+    [eventClient addGlobalAttribute:@"test-start-timstamp-value" forKey:AWSSessionStartTimeAttributeKey];
     
     BlockingInterceptor* interceptor = [[BlockingInterceptor alloc] init];
     [interceptor setExpectedRequestURL:[NSURL URLWithString:[BASE_URL stringByAppendingFormat:@"%@/events", APP_KEY]]];
@@ -359,7 +379,7 @@
     
     AWSMobileAnalyticsDefaultDeliveryClient* deliveryClient = [AWSMobileAnalyticsDefaultDeliveryClient deliveryClientWithContext:_context
                                                                              withWanDelivery:NO];
-    id<AWSMobileAnalyticsEventClient> eventClient = [AWSMobileAnalyticsDefaultEventClient eventClientWithContext:_context
+    id<AWSMobileAnalyticsEventClient> eventClient = [[AWSMobileAnalyticsDefaultEventClient alloc] initWithContext:_context
                                                               withDeliveryClient:deliveryClient
                                                            allowsEventCollection:YES];
     
@@ -371,15 +391,15 @@
     id<AWSMobileAnalyticsEvent> event = [eventClient createEventWithEventType:@"my_event"];
     
     //add fake session.id
-    [event addAttribute:@"ccesskey-11111111-20140606-231017274" forKey:SESSION_ID_ATTRIBUTE_KEY];
+    [event addAttribute:@"ccesskey-11111111-20140606-231017274" forKey:AWSSessionIDAttributeKey];
     //add startTimeStamp
-    [event addAttribute:[[NSDate date] az_stringValue:AZDateISO8601DateFormat3] forKey:SESSION_START_TIME_ATTRIBUTE_KEY];
+    [event addAttribute:[[NSDate date] aws_stringValue:AWSDateISO8601DateFormat3] forKey:AWSSessionStartTimeAttributeKey];
     //set eventRecorderService object
     id<AWSMobileAnalyticsHttpClient>httpClient = [deliveryClient valueForKey:@"httpClient"];
-    AWSEventRecorderService *ers = [[AWSEventRecorderService alloc] initWithConfiguration:[AWSServiceManager defaultServiceManager].
+    AWSMobileAnalyticsERS *ers = [[AWSMobileAnalyticsERS alloc] initWithConfiguration:[AWSServiceManager defaultServiceManager].
                                            defaultServiceConfiguration];
     
-    httpClient.eventRecorderService = ers;
+    httpClient.ers = ers;
     
     
     [eventClient recordEvent:event];

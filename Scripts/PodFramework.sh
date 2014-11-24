@@ -1,8 +1,5 @@
 #!/bin/sh
 
-cd "$SOURCE_ROOT"
-
-
 # version
 FRAMEWORK_VERSION=A
 
@@ -10,7 +7,7 @@ FRAMEWORK_VERSION=A
 NAME="$1"
 
 # framework build path
-BUILD_PATH="Build/$NAME"
+BUILD_PATH="build/third-party"
 
 # full name of framework
 FRAMEWORK_DIR=$BUILD_PATH/$NAME.framework
@@ -19,7 +16,6 @@ echo "generate framework for: "
 echo $NAME
 echo "framework path is: "
 echo $FRAMEWORK_DIR
-
 
 # clean
 rm -rf $FRAMEWORK_DIR
@@ -37,11 +33,8 @@ ln -s Versions/Current/Headers $FRAMEWORK_DIR/Headers
 ln -s Versions/Current/Resources $FRAMEWORK_DIR/Resources
 ln -s Versions/Current/$NAME $FRAMEWORK_DIR/$NAME
 
-
-
 echo "Framework: Creating library bolts " 
-lipo -create "Pods/build/Debug-iphonesimulator/libPods-${NAME}.a" "Pods/build/Debug64-iphonesimulator/libPods-${NAME}.a" "Pods/build/Release-iphoneos/libPods-${NAME}.a" "Pods/build/Release64-iphoneos/libPods-${NAME}.a" -o "$FRAMEWORK_DIR/Versions/Current/$NAME"
-
+lipo -create "build/Debug-iphonesimulator/libPods-${NAME}.a" "build/Release-iphoneos/libPods-${NAME}.a" -o "$FRAMEWORK_DIR/Versions/Current/$NAME"
 
 # copy header file
 if [ "$1" = "UICKeyChainStore" ]
@@ -50,7 +43,10 @@ then
 elif [ "$1" = "Reachability" ]
 then
     cp -a Pods/${NAME}/*.h $FRAMEWORK_DIR/Headers/
+elif [ "$1" = "Bolts" ]
+then
+    cp -a Pods/${NAME}/${NAME}/Common/*.h $FRAMEWORK_DIR/Headers/
+    cp -a Pods/${NAME}/${NAME}/iOS/*.h $FRAMEWORK_DIR/Headers/
 else
     cp -a Pods/${NAME}/${NAME}/*.h $FRAMEWORK_DIR/Headers/
 fi
-

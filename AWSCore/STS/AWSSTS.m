@@ -15,8 +15,8 @@
 
 #import "AWSSTS.h"
 
-#import "AZNetworking.h"
-#import "AZCategory.h"
+#import "AWSNetworking.h"
+#import "AWSCategory.h"
 #import "AWSSignature.h"
 #import "AWSService.h"
 #import "AWSNetworking.h"
@@ -47,12 +47,12 @@ static NSDictionary *errorCodeDictionary = nil;
                             @"InvalidClientTokenId" : @(AWSSTSErrorInvalidClientTokenId),
                             @"MissingAuthenticationToken" : @(AWSSTSErrorMissingAuthenticationToken),
                             @"ExpiredTokenException" : @(AWSSTSErrorExpiredToken),
-                            @"IDPCommunicationErrorException" : @(AWSSTSErrorIDPCommunicationError),
-                            @"IDPRejectedClaimException" : @(AWSSTSErrorIDPRejectedClaim),
+                            @"IDPCommunicationError" : @(AWSSTSErrorIDPCommunicationError),
+                            @"IDPRejectedClaim" : @(AWSSTSErrorIDPRejectedClaim),
                             @"InvalidAuthorizationMessageException" : @(AWSSTSErrorInvalidAuthorizationMessage),
-                            @"InvalidIdentityTokenException" : @(AWSSTSErrorInvalidIdentityToken),
-                            @"MalformedPolicyDocumentException" : @(AWSSTSErrorMalformedPolicyDocument),
-                            @"PackedPolicyTooLargeException" : @(AWSSTSErrorPackedPolicyTooLarge),
+                            @"InvalidIdentityToken" : @(AWSSTSErrorInvalidIdentityToken),
+                            @"MalformedPolicyDocument" : @(AWSSTSErrorMalformedPolicyDocument),
+                            @"PackedPolicyTooLarge" : @(AWSSTSErrorPackedPolicyTooLarge),
                             };
 }
 
@@ -80,12 +80,19 @@ static NSDictionary *errorCodeDictionary = nil;
 
     if (!*error && [responseObject isKindOfClass:[NSDictionary class]]) {
         NSDictionary *errorInfo = responseObject[@"Error"];
-        if (errorInfo) {
+        if (errorInfo[@"Code"] && errorCodeDictionary[errorInfo[@"Code"]]) {
+            if (error) {
+                *error = [NSError errorWithDomain:AWSSTSErrorDomain
+                                             code:[errorCodeDictionary[errorInfo[@"Code"]] integerValue]
+                                         userInfo:errorInfo
+                          ];
+                return responseObject;
+            }
+        } else if (errorInfo) {
             if (error) {
                 *error = [NSError errorWithDomain:AWSSTSErrorDomain
                                              code:AWSSTSErrorUnknown
-                                         userInfo:@{NSLocalizedDescriptionKey : [NSString stringWithFormat:@"%@ -- %@",[errorInfo objectForKey:@"Code"], [errorInfo objectForKey:@"Message"]]
-                                                    }];
+                                         userInfo:errorInfo];
             }
         } else if (self.outputClass) {
             responseObject = [MTLJSONAdapter modelOfClass:self.outputClass
@@ -105,26 +112,36 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @implementation AWSSTSRequestRetryHandler
 
-- (AZNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
-                            response:(NSHTTPURLResponse *)response
-                                data:(NSData *)data
-                               error:(NSError *)error {
-    AZNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
-                                                response:response
-                                                    data:data
-                                                   error:error];
-    if(retryType == AZNetworkingRetryTypeShouldNotRetry
-       && [error.domain isEqualToString:AWSSTSErrorDomain]
+- (AWSNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
+                             response:(NSHTTPURLResponse *)response
+                                 data:(NSData *)data
+                                error:(NSError *)error {
+    AWSNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
+                                                 response:response
+                                                     data:data
+                                                    error:error];
+    if(retryType == AWSNetworkingRetryTypeShouldNotRetry
        && currentRetryCount < self.maxRetryCount) {
-        switch (error.code) {
-            case AWSSTSErrorIncompleteSignature:
-            case AWSSTSErrorInvalidClientTokenId:
-            case AWSSTSErrorMissingAuthenticationToken:
-                retryType = AZNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
-                break;
+        if ([error.domain isEqualToString:AWSSTSErrorDomain]) {
+            switch (error.code) {
+                case AWSSTSErrorIncompleteSignature:
+                case AWSSTSErrorInvalidClientTokenId:
+                case AWSSTSErrorMissingAuthenticationToken:
+                    retryType = AWSNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
+        } else if ([error.domain isEqualToString:AWSGeneralErrorDomain]) {
+            switch (error.code) {
+                case AWSGeneralErrorSignatureDoesNotMatch:
+                    retryType = AWSNetworkingRetryTypeShouldCorrectClockSkewAndRetry;
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -135,14 +152,19 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @interface AWSRequest()
 
-@property (nonatomic, strong) AZNetworkingRequest *internalRequest;
+@property (nonatomic, strong) AWSNetworkingRequest *internalRequest;
 
 @end
 
 @interface AWSSTS()
 
-@property (nonatomic, strong) AZNetworking *networking;
+@property (nonatomic, strong) AWSNetworking *networking;
 @property (nonatomic, strong) AWSServiceConfiguration *configuration;
+
+@end
+
+@interface AWSServiceConfiguration()
+
 @property (nonatomic, strong) AWSEndpoint *endpoint;
 
 @end
@@ -167,25 +189,25 @@ static NSDictionary *errorCodeDictionary = nil;
     if (self = [super init]) {
         _configuration = [configuration copy];
 
-        _endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
-                                            service:AWSServiceSTS];
+        _configuration.endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
+                                                          service:AWSServiceSTS];
 
         AWSSignatureV4Signer *signer = [AWSSignatureV4Signer signerWithCredentialsProvider:_configuration.credentialsProvider
-                                                                                  endpoint:_endpoint];
+                                                                                  endpoint:_configuration.endpoint];
 
-        _configuration.baseURL = _endpoint.URL;
+        _configuration.baseURL = _configuration.endpoint.URL;
         _configuration.requestInterceptors = @[[AWSNetworkingRequestInterceptor new], signer];
         _configuration.retryHandler = [[AWSSTSRequestRetryHandler alloc] initWithMaximumRetryCount:_configuration.maxRetryCount];
-        _configuration.headers = @{@"Host" : _endpoint.hostName};
+        _configuration.headers = @{@"Host" : _configuration.endpoint.hostName};
 
-        _networking = [AZNetworking networking:_configuration];
+        _networking = [AWSNetworking networking:_configuration];
     }
 
     return self;
 }
 
 - (BFTask *)invokeRequest:(AWSRequest *)request
-               HTTPMethod:(AZHTTPMethod)HTTPMethod
+               HTTPMethod:(AWSHTTPMethod)HTTPMethod
                 URLString:(NSString *) URLString
              targetPrefix:(NSString *)targetPrefix
             operationName:(NSString *)operationName
@@ -194,9 +216,9 @@ static NSDictionary *errorCodeDictionary = nil;
         request = [AWSRequest new];
     }
 
-    AZNetworkingRequest *networkingRequest = request.internalRequest;
+    AWSNetworkingRequest *networkingRequest = request.internalRequest;
     if (request) {
-        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] az_removeNullValues];
+        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] aws_removeNullValues];
     } else {
         networkingRequest.parameters = @{};
     }
@@ -217,7 +239,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)assumeRole:(AWSSTSAssumeRoleRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"AssumeRole"
@@ -226,7 +248,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)assumeRoleWithSAML:(AWSSTSAssumeRoleWithSAMLRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"AssumeRoleWithSAML"
@@ -235,7 +257,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)assumeRoleWithWebIdentity:(AWSSTSAssumeRoleWithWebIdentityRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"AssumeRoleWithWebIdentity"
@@ -244,7 +266,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)decodeAuthorizationMessage:(AWSSTSDecodeAuthorizationMessageRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"DecodeAuthorizationMessage"
@@ -253,7 +275,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getFederationToken:(AWSSTSGetFederationTokenRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetFederationToken"
@@ -262,7 +284,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getSessionToken:(AWSSTSGetSessionTokenRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetSessionToken"

@@ -15,20 +15,25 @@
 
 #import "AWSDynamoDB.h"
 
-#import "AZNetworking.h"
+#import "AWSNetworking.h"
 #import "AWSSignature.h"
 #import "AWSService.h"
-#import "AZCategory.h"
+#import "AWSCategory.h"
 #import "AWSNetworking.h"
 #import "AWSURLRequestSerialization.h"
 #import "AWSURLResponseSerialization.h"
 #import "AWSURLRequestRetryHandler.h"
 
+NSString *const AWSDynamoDBDefinitionFileName = @"dynamodb-2012-08-10";
+
 @interface AWSDynamoDBResponseSerializer : AWSJSONResponseSerializer
 
 @property (nonatomic, assign) Class outputClass;
 
-+ (instancetype)serializerWithOutputClass:(Class)outputClass;
++ (instancetype)serializerWithOutputClass:(Class)outputClass
+                                 resource:(NSString *)resource
+                               actionName:(NSString *)actionName;
+
 
 @end
 
@@ -56,8 +61,11 @@ static NSDictionary *errorCodeDictionary = nil;
 
 #pragma mark -
 
-+ (instancetype)serializerWithOutputClass:(Class)outputClass {
-    AWSDynamoDBResponseSerializer *serializer = [AWSDynamoDBResponseSerializer new];
++ (instancetype)serializerWithOutputClass:(Class)outputClass
+                                 resource:(NSString *)resource
+                               actionName:(NSString *)actionName
+{
+    AWSDynamoDBResponseSerializer *serializer = [AWSDynamoDBResponseSerializer serializerWithResource:resource actionName:actionName];
     serializer.outputClass = outputClass;
 
     return serializer;
@@ -78,14 +86,14 @@ static NSDictionary *errorCodeDictionary = nil;
             if (error) {
                 *error = [NSError errorWithDomain:AWSDynamoDBErrorDomain
                                              code:[[errorCodeDictionary objectForKey:[[[responseObject objectForKey:@"__type"] componentsSeparatedByString:@"#"] lastObject]] integerValue]
-                                         userInfo:@{NSLocalizedDescriptionKey : [responseObject objectForKey:@"message"]?[responseObject objectForKey:@"message"]:[NSNull null]}];
+                                         userInfo:responseObject];
             }
             return responseObject;
         } else if ([[[responseObject objectForKey:@"__type"] componentsSeparatedByString:@"#"] lastObject]) {
             if (error) {
                 *error = [NSError errorWithDomain:AWSDynamoDBErrorDomain
                                              code:AWSDynamoDBErrorUnknown
-                                         userInfo:@{NSLocalizedDescriptionKey : [responseObject objectForKey:@"message"]?[responseObject objectForKey:@"message"]:[NSNull null]}];
+                                         userInfo:responseObject];
             }
             return responseObject;
         }
@@ -108,20 +116,20 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @implementation AWSDynamoDBRequestRetryHandler
 
-- (AZNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
+- (AWSNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
                             response:(NSHTTPURLResponse *)response
                                 data:(NSData *)data
                                error:(NSError *)error {
-    AZNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
+    AWSNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
                                                 response:response
                                                     data:data
                                                    error:error];
-    if(retryType == AZNetworkingRetryTypeShouldNotRetry
+    if(retryType == AWSNetworkingRetryTypeShouldNotRetry
        && [error.domain isEqualToString:AWSDynamoDBErrorDomain]
        && currentRetryCount < self.maxRetryCount) {
         switch (error.code) {
             case AWSDynamoDBErrorProvisionedThroughputExceeded:
-                retryType = AZNetworkingRetryTypeShouldRetry;
+                retryType = AWSNetworkingRetryTypeShouldRetry;
                 break;
 
             case AWSDynamoDBErrorAccessDenied:
@@ -129,7 +137,7 @@ static NSDictionary *errorCodeDictionary = nil;
             case AWSDynamoDBErrorIncompleteSignature:
             case AWSDynamoDBErrorInvalidClientTokenId:
             case AWSDynamoDBErrorMissingAuthenticationToken:
-                retryType = AZNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
+                retryType = AWSNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
                 break;
 
             default:
@@ -144,16 +152,20 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @interface AWSRequest()
 
-@property (nonatomic, strong) AZNetworkingRequest *internalRequest;
+@property (nonatomic, strong) AWSNetworkingRequest *internalRequest;
 
 @end
 
 @interface AWSDynamoDB()
 
-@property (nonatomic, strong) AZNetworking *networking;
+@property (nonatomic, strong) AWSNetworking *networking;
 @property (nonatomic, strong) AWSServiceConfiguration *configuration;
-@property (nonatomic, strong) AWSEndpoint *endpoint;
 
+@end
+
+@interface AWSServiceConfiguration()
+
+@property (nonatomic, strong) AWSEndpoint *endpoint;
 
 @end
 
@@ -177,28 +189,28 @@ static NSDictionary *errorCodeDictionary = nil;
     if (self = [super init]) {
         _configuration = [configuration copy];
 
-        _endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
-                                            service:AWSServiceDynamoDB];
+        _configuration.endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
+                                                          service:AWSServiceDynamoDB];
 
         AWSSignatureV4Signer *signer = [AWSSignatureV4Signer signerWithCredentialsProvider:_configuration.credentialsProvider
-                                                                                  endpoint:_endpoint];
+                                                                                  endpoint:_configuration.endpoint];
 
-        _configuration.baseURL = _endpoint.URL;
+        _configuration.baseURL = _configuration.endpoint.URL;
         _configuration.requestSerializer = [AWSJSONRequestSerializer new];
         _configuration.requestInterceptors = @[[AWSNetworkingRequestInterceptor new], signer];
         _configuration.retryHandler = [[AWSDynamoDBRequestRetryHandler alloc] initWithMaximumRetryCount:_configuration.maxRetryCount];
-        _configuration.headers = @{@"Host" : _endpoint.hostName,
+        _configuration.headers = @{@"Host" : _configuration.endpoint.hostName,
                                    @"Content-Type" : @"application/x-amz-json-1.0",
                                    @"Accept-Encoding" : @""};
 
-        _networking = [AZNetworking networking:_configuration];
+        _networking = [AWSNetworking networking:_configuration];
     }
 
     return self;
 }
 
 - (BFTask *)invokeRequest:(AWSRequest *)request
-               HTTPMethod:(AZHTTPMethod)HTTPMethod
+               HTTPMethod:(AWSHTTPMethod)HTTPMethod
                 URLString:(NSString *) URLString
              targetPrefix:(NSString *)targetPrefix
             operationName:(NSString *)operationName
@@ -207,9 +219,9 @@ static NSDictionary *errorCodeDictionary = nil;
         request = [AWSRequest new];
     }
 
-    AZNetworkingRequest *networkingRequest = request.internalRequest;
+    AWSNetworkingRequest *networkingRequest = request.internalRequest;
     if (request) {
-        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] az_removeNullValues];
+        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] aws_removeNullValues];
     } else {
         networkingRequest.parameters = @{};
     }
@@ -217,8 +229,9 @@ static NSDictionary *errorCodeDictionary = nil;
     headers[@"X-Amz-Target"] = [NSString stringWithFormat:@"%@.%@", targetPrefix, operationName];
     networkingRequest.headers = headers;
     networkingRequest.HTTPMethod = HTTPMethod;
-    networkingRequest.responseSerializer = [AWSDynamoDBResponseSerializer serializerWithOutputClass:outputClass];
-
+    networkingRequest.responseSerializer = [AWSDynamoDBResponseSerializer serializerWithOutputClass:outputClass resource:AWSDynamoDBDefinitionFileName actionName:operationName];
+    networkingRequest.requestSerializer = [AWSJSONRequestSerializer serializerWithResource:AWSDynamoDBDefinitionFileName actionName:operationName];
+    
     return [self.networking sendRequest:networkingRequest];
 }
 
@@ -226,7 +239,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)batchGetItem:(AWSDynamoDBBatchGetItemInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"BatchGetItem"
@@ -235,7 +248,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)batchWriteItem:(AWSDynamoDBBatchWriteItemInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"BatchWriteItem"
@@ -244,7 +257,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)createTable:(AWSDynamoDBCreateTableInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"CreateTable"
@@ -253,7 +266,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)deleteItem:(AWSDynamoDBDeleteItemInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"DeleteItem"
@@ -262,7 +275,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)deleteTable:(AWSDynamoDBDeleteTableInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"DeleteTable"
@@ -271,7 +284,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)describeTable:(AWSDynamoDBDescribeTableInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"DescribeTable"
@@ -280,7 +293,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getItem:(AWSDynamoDBGetItemInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"GetItem"
@@ -289,7 +302,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)listTables:(AWSDynamoDBListTablesInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"ListTables"
@@ -298,7 +311,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)putItem:(AWSDynamoDBPutItemInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"PutItem"
@@ -307,7 +320,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)query:(AWSDynamoDBQueryInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"Query"
@@ -316,7 +329,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)scan:(AWSDynamoDBScanInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"Scan"
@@ -325,7 +338,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)updateItem:(AWSDynamoDBUpdateItemInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"UpdateItem"
@@ -334,7 +347,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)updateTable:(AWSDynamoDBUpdateTableInput *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@"DynamoDB_20120810"
                  operationName:@"UpdateTable"

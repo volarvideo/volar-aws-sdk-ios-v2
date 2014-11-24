@@ -13,23 +13,9 @@
  * permissions and limitations under the License.
  */
 
-#if AWS_TEST_STS
-
 #import <XCTest/XCTest.h>
 #import "STS.h"
 #import "AWSTestUtility.h"
-
-@interface AWSTestCredentialsProvider : NSObject <AWSCredentialsProvider>
-
-@property (nonatomic) NSString *accessKey;
-@property (nonatomic) NSString *secretKey;
-@property (nonatomic) NSString *sessionKey;
-
-@end
-
-@implementation AWSTestCredentialsProvider
-
-@end
 
 @interface AWSSTSTests : XCTestCase
 
@@ -73,43 +59,5 @@
     }] waitUntilFinished];
 }
 
-+ (void)runServiceWithStsCredential {
-    AWSTestCredentialsProvider *testCredentialProvider = [AWSTestCredentialsProvider new];
-
-    AWSSTS *sts = (AWSSTS *)[[AWSServiceManager defaultServiceManager] serviceForKey:AWSTestUtilitySTSKey];
-
-    AWSSTSGetSessionTokenRequest *getSessionTokenRequest = [AWSSTSGetSessionTokenRequest new];
-    getSessionTokenRequest.durationSeconds = @900;
-
-    [[[sts getSessionToken:getSessionTokenRequest] continueWithBlock:^id(BFTask *task) {
-        if (task.error) {
-            //XCTFail(@"Error: [%@]", task.error);
-        }
-
-        if (task.result) {
-            AWSSTSGetSessionTokenResponse *getSessionTokenResponse = task.result;
-            //XCTAssertTrue([getSessionTokenResponse.credentials.accessKeyId length] > 0);
-            testCredentialProvider.accessKey = getSessionTokenResponse.credentials.accessKeyId;
-
-            //XCTAssertTrue([getSessionTokenResponse.credentials.secretAccessKey length] > 0);
-            testCredentialProvider.secretKey = getSessionTokenResponse.credentials.secretAccessKey;
-
-            //XCTAssertTrue([getSessionTokenResponse.credentials.sessionToken length] > 0);
-            testCredentialProvider.sessionKey = getSessionTokenResponse.credentials.sessionToken;
-
-            //XCTAssertTrue([getSessionTokenResponse.credentials.expiration isKindOfClass:[NSDate class]]);
-        }
-
-        return nil;
-    }] waitUntilFinished];
-
-    AWSServiceConfiguration *configuration = [AWSServiceConfiguration  configurationWithRegion:AWSRegionUSEast1
-                                                                           credentialsProvider:testCredentialProvider];
-    [[AWSServiceManager defaultServiceManager] setDefaultServiceConfiguration:configuration];
-    
-    
-}
 
 @end
-
-#endif

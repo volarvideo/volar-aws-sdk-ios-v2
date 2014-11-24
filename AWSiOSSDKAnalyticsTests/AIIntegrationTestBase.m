@@ -73,14 +73,14 @@
 {
     NSFileManager *internalFileManager = [NSFileManager defaultManager];
     NSString *rootPath = [AWSMobileAnalyticsIOSSystem rootFileDirectoryWithFileManager:internalFileManager];
-    NSString *absolutePath = [rootPath stringByAppendingPathComponent:@"insights"];
+    NSString *absolutePath = [rootPath stringByAppendingPathComponent:AWSMobileAnalyticsRoot];
     
     NSError *error;
     [internalFileManager removeItemAtPath:absolutePath error:&error];
 }
 
-- (unsigned int)testCaseCount {
-    unsigned int count = 0;
+- (NSUInteger)testCaseCount {
+    NSUInteger count = 0;
     
     if ([[self class] isKindOfClass:[AIIntegrationTestBase class]] == NO)
     {
@@ -90,22 +90,22 @@
     return count;
 }
 
-- (void)performTest:(SenTestRun *)testRun {
-    if ([[self class] isKindOfClass:[AIIntegrationTestBase class]] == NO)
-    {
-        NSArray *locales = [NSArray arrayWithObjects:@"en_US", @"ar_SA", @"ja_JP_JP", @"fr_FR", nil];
-        for (NSString *locale in locales) {
-            [NSLocale ttt_overrideRuntimeLocale:[NSLocale localeWithLocaleIdentifier:locale]];
-            NSString *locale = [[NSLocale currentLocale] localeIdentifier];
-            NSLog(@"current locale set to: %@", locale);
-            
-            [super performTest:testRun];
-            
-            [NSLocale ttt_resetRuntimeLocale];
-            locale = [[NSLocale currentLocale] localeIdentifier];
-            NSLog(@"current locale set back to: %@", locale);
-        }
-    }
-}
+//- (void)performTest:(XCTestRun *)testRun {
+//    if ([[self class] isKindOfClass:[AIIntegrationTestBase class]] == NO)
+//    {
+//        NSArray *locales = [NSArray arrayWithObjects:@"en_US", @"ar_SA", @"ja_JP_JP", @"fr_FR", nil];
+//        for (NSString *locale in locales) {
+//            [NSLocale ttt_overrideRuntimeLocale:[NSLocale localeWithLocaleIdentifier:locale]];
+//            NSString *locale = [[NSLocale currentLocale] localeIdentifier];
+//            NSLog(@"current locale set to: %@", locale);
+//            
+//            [super performTest:testRun];
+//            
+//            [NSLocale ttt_resetRuntimeLocale];
+//            locale = [[NSLocale currentLocale] localeIdentifier];
+//            NSLog(@"current locale set back to: %@", locale);
+//        }
+//    }
+//}
 
 @end

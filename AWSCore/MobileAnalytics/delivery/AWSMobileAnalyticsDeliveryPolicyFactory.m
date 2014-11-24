@@ -21,7 +21,7 @@
 
 
 @interface AWSMobileAnalyticsDeliveryPolicyFactory()
-@property(nonatomic)id<AWSMobileAnalyticsConfiguration> configuration;
+@property(nonatomic)id<AWSMobileAnalyticsConfiguring> configuration;
 @property(nonatomic)id<AWSMobileAnalyticsSystem> system;
 @property(nonatomic)id<AWSMobileAnalyticsPreferences> preferences;
 @property(nonatomic)BOOL isWANAllowed;
@@ -33,7 +33,7 @@
 
 +(AWSMobileAnalyticsDeliveryPolicyFactory*)factoryWithSystem:(id<AWSMobileAnalyticsSystem>)system
                              withPreferences:(id<AWSMobileAnalyticsPreferences>)preferences
-                           withConfiguration:(id<AWSMobileAnalyticsConfiguration>)configuration
+                           withConfiguration:(id<AWSMobileAnalyticsConfiguring>)configuration
                       withAllowWanSubmission:(BOOL)allowWan
 {
     return [[AWSMobileAnalyticsDeliveryPolicyFactory alloc] initWithSystem:system
@@ -43,7 +43,7 @@
 }
 
 -(id)initWithSystem:(id<AWSMobileAnalyticsSystem>)system
-  withConfiguration:(id<AWSMobileAnalyticsConfiguration>)configuration
+  withConfiguration:(id<AWSMobileAnalyticsConfiguring>)configuration
     withPreferences:(id<AWSMobileAnalyticsPreferences>)preferences
 withAllowWanSubmission:(BOOL)allowWan
 {
@@ -53,8 +53,8 @@ withAllowWanSubmission:(BOOL)allowWan
         self.configuration = configuration;
         self.isWANAllowed = allowWan;
         self.preferences = preferences;
-        self.forceSubmissionInterval = [self.configuration doubleForKey:KeyForceSubmissionWaitTime withOptValue:ValueForceSubmissionWaitTime];
-        self.backgroundSubmissionInterval = [self.configuration doubleForKey:KeyBackgroundSubmissionWaitTime withOptValue:ValueBackgroundSubmissionWaitTime];;
+        self.forceSubmissionInterval = [self.configuration doubleForKey:AWSKeyForceSubmissionWaitTime withOptValue:AWSValueForceSubmissionWaitTime];
+        self.backgroundSubmissionInterval = [self.configuration doubleForKey:AWSKeyBackgroundSubmissionWaitTime withOptValue:AWSValueBackgroundSubmissionWaitTime];
     }
     return self;
 }

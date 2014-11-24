@@ -15,11 +15,8 @@
 
 #import "AWSService.h"
 
-#import "AZSynchronizedMutableDictionary.h"
+#import "AWSSynchronizedMutableDictionary.h"
 #import "AWSURLResponseSerialization.h"
-
-#import "CSURITemplate.h"
-#import "TMCache.h"
 
 #pragma mark - AWSService
 
@@ -32,7 +29,7 @@
 @interface AWSServiceManager()
 
 @property (nonatomic, strong) AWSServiceConfiguration *defaultServiceConfiguration;
-@property (nonatomic, strong) AZSynchronizedMutableDictionary *dictionary;
+@property (nonatomic, strong) AWSSynchronizedMutableDictionary *dictionary;
 
 @end
 
@@ -50,7 +47,7 @@
 
 - (instancetype)init {
     if ( self = [super init]) {
-        _dictionary = [AZSynchronizedMutableDictionary new];
+        _dictionary = [AWSSynchronizedMutableDictionary new];
     }
     return self;
 }
@@ -80,6 +77,8 @@
 
 @interface AWSServiceConfiguration()
 
+@property (nonatomic, strong) AWSEndpoint *endpoint;
+
 @end
 
 @implementation AWSServiceConfiguration
@@ -87,6 +86,7 @@
 - (instancetype)init {
     if(self = [super init]) {
         _regionType = AWSRegionUnknown;
+        _maxRetryCount = 3;
     }
 
     return self;
@@ -96,6 +96,7 @@
     if (self = [super init]) {
         _regionType = regionType;
         _credentialsProvider = credentialsProvider;
+        _maxRetryCount = 3;
     }
 
     return self;
@@ -110,7 +111,7 @@
 - (id)copyWithZone:(NSZone *)zone {
     AWSServiceConfiguration *configuration = [[[self class] allocWithZone:zone] initWithRegion:self.regionType
                                                                            credentialsProvider:self.credentialsProvider];
-
+    configuration.maxRetryCount = self.maxRetryCount;
     return configuration;
 }
 
@@ -178,10 +179,12 @@ NSString *const AWSRegionNameUSEast1 = @"us-east-1";
 NSString *const AWSRegionNameUSWest2 = @"us-west-2";
 NSString *const AWSRegionNameUSWest1 = @"us-west-1";
 NSString *const AWSRegionNameEUWest1 = @"eu-west-1";
+NSString *const AWSRegionNameEUCentral1 = @"eu-central-1";
 NSString *const AWSRegionNameAPSoutheast1 = @"ap-southeast-1";
-NSString *const AWSRegionNameAPSoutheast2 = @"ap-southeast-2";
 NSString *const AWSRegionNameAPNortheast1 = @"ap-northeast-1";
+NSString *const AWSRegionNameAPSoutheast2 = @"ap-southeast-2";
 NSString *const AWSRegionNameSAEast1 = @"sa-east-1";
+NSString *const AWSRegionNameCNNorth1 = @"cn-north-1";
 
 NSString *const AWSServiceNameAppStream = @"appstream";
 NSString *const AWSServiceNameAutoScaling = @"autoscaling";
@@ -199,7 +202,7 @@ NSString *const AWSServiceNameSNS = @"sns";
 NSString *const AWSServiceNameSQS = @"sqs";
 NSString *const AWSServiceNameSTS = @"sts";
 
-NSString *const AWSServiceNameEventRecorder = @"mobileanalytics";
+NSString *const AWSServiceNameMobileAnalytics = @"mobileanalytics";
 
 @interface AWSEndpoint()
 
@@ -225,7 +228,7 @@ NSString *const AWSServiceNameEventRecorder = @"mobileanalytics";
 }
 
 - (instancetype)initWithRegion:(AWSRegionType)regionType
-                    service:(AWSServiceType)serviceType
+                       service:(AWSServiceType)serviceType
                   useUnsafeURL:(BOOL)useUnsafeURL {
     if (self = [super init]) {
         _regionType = regionType;
@@ -245,6 +248,9 @@ NSString *const AWSServiceNameEventRecorder = @"mobileanalytics";
             case AWSRegionEUWest1:
                 _regionName = AWSRegionNameEUWest1;
                 break;
+            case AWSRegionEUCentral1:
+                _regionName = AWSRegionNameEUCentral1;
+                break;
             case AWSRegionAPSoutheast1:
                 _regionName = AWSRegionNameAPSoutheast1;
                 break;
@@ -257,6 +263,8 @@ NSString *const AWSServiceNameEventRecorder = @"mobileanalytics";
             case AWSRegionSAEast1:
                 _regionName = AWSRegionNameSAEast1;
                 break;
+            case AWSRegionCNNorth1:
+                _regionName = AWSRegionNameCNNorth1;
             default:
                 break;
         }
@@ -307,16 +315,24 @@ NSString *const AWSServiceNameEventRecorder = @"mobileanalytics";
             case AWSServiceSTS:
                 _serviceName = AWSServiceNameSTS;
                 break;
-            case AWSServiceGameLabEventRecorder:
-                _serviceName = AWSServiceNameEventRecorder;
+            case AWSServiceMobileAnalytics:
+                _serviceName = AWSServiceNameMobileAnalytics;
             default:
                 break;
         }
 
         NSString *separator = @".";
-        if (_serviceType == AWSServiceS3) {
-            separator = @"-";
-        }
+        if (_serviceType == AWSServiceS3
+            && (_regionType == AWSRegionUSEast1
+                || _regionType == AWSRegionUSWest1
+                || _regionType == AWSRegionUSWest2
+                || _regionType == AWSRegionEUWest1
+                || _regionType == AWSRegionAPSoutheast1
+                || _regionType == AWSRegionAPNortheast1
+                || _regionType == AWSRegionAPSoutheast2
+                || _regionType == AWSRegionSAEast1)) {
+                separator = @"-";
+            }
 
         NSString *HTTP_Type = @"https";
         if (_useUnsafeURL) {
@@ -325,30 +341,39 @@ NSString *const AWSServiceNameEventRecorder = @"mobileanalytics";
 
         if (_serviceType == AWSServiceS3 && _regionType == AWSRegionUSEast1) {
             _URL = [NSURL URLWithString:[NSString stringWithFormat:@"%@://s3.amazonaws.com", HTTP_Type]];
-        } else if (_serviceType == AWSServiceSTS && _regionType == AWSRegionUSEast1) {
-            _URL = [NSURL URLWithString:@"https://sts.amazonaws.com"];
+        } else if (_serviceType == AWSServiceSTS) {
+            if (_regionType == AWSRegionCNNorth1) {
+                _URL = [NSURL URLWithString:@"https://sts.cn-north-1.amazonaws.com"];
+            } else {
+                _URL = [NSURL URLWithString:@"https://sts.amazonaws.com"];
+            }
+
         } else if (_serviceType == AWSServiceSimpleDB && _regionType == AWSRegionUSEast1) {
             _URL = [NSURL URLWithString:[NSString stringWithFormat:@"%@://sdb.amazonaws.com", HTTP_Type]];
-        } else if (_serviceType == AWSServiceCognitoIdentityBroker && _regionType == AWSRegionUSEast1) {
-            _URL = [NSURL URLWithString:@"https://cognito-identity.us-east-1.amazonaws.com"];
-        } else if (_serviceType == AWSServiceCognitoService && _regionType == AWSRegionUSEast1) {
-            _URL = [NSURL URLWithString:@"https://cognito-sync.us-east-1.amazonaws.com"];
         } else {
             _URL = [NSURL URLWithString:[NSString stringWithFormat:@"%@://%@%@%@.amazonaws.com", HTTP_Type, _serviceName, separator, _regionName]];
         }
 
+        //need to add ".cn" at end of URL if it is in China Region
+        if ([_regionName hasPrefix:@"cn"]) {
+            NSString *urlString = [_URL absoluteString];
+            _URL = [NSURL URLWithString:[urlString stringByAppendingString:@".cn"]];
+        }
         _hostName = [_URL host];
     }
 
     return self;
 }
 
-+ (instancetype)endpointWithRegion:(AWSRegionType)regionType service:(AWSServiceType)serviceType {
++ (instancetype)endpointWithRegion:(AWSRegionType)regionType
+                           service:(AWSServiceType)serviceType {
     AWSEndpoint *endpoint = [[AWSEndpoint alloc] initWithRegion:regionType service:serviceType useUnsafeURL:NO];
     return endpoint;
 }
 
-+ (instancetype)endpointWithRegion:(AWSRegionType)regionType service:(AWSServiceType)serviceType useUnsafeURL:(BOOL)useUnsafeURL {
++ (instancetype)endpointWithRegion:(AWSRegionType)regionType
+                           service:(AWSServiceType)serviceType
+                      useUnsafeURL:(BOOL)useUnsafeURL {
     AWSEndpoint *endpoint = [[AWSEndpoint alloc] initWithRegion:regionType service:serviceType useUnsafeURL:useUnsafeURL];
     return endpoint;
 }

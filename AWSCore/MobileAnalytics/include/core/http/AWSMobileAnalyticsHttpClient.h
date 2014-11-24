@@ -18,24 +18,23 @@
 #import "AWSMobileAnalyticsRequest.h"
 #import "AWSMobileAnalyticsResponse.h"
 
-@class AWSEventRecorderService;
+@class AWSMobileAnalyticsERS;
 
 typedef BOOL (^RetryHandler)(int);
 
 @protocol AWSMobileAnalyticsHttpClient <NSObject>
 
-@property (nonatomic, strong) AWSEventRecorderService *eventRecorderService;
+@property (nonatomic, strong) AWSMobileAnalyticsERS *ers;
 
 @required
--(void) addInterceptor: (id<AWSMobileAnalyticsInterceptor>) theInterceptor;
-
-@required
--(id<AWSMobileAnalyticsResponse>) execute:(id<AWSMobileAnalyticsRequest>) theRequest withRetries:(int) theRetries withTimeout:(NSTimeInterval) theTimeout;
-
-@required
--(id<AWSMobileAnalyticsResponse>) execute:(id<AWSMobileAnalyticsRequest>) theRequest withRetries:(int) theRetries withTimeout:(NSTimeInterval) theTimeout withRetryHandler:(RetryHandler) theHandler;
-
-@required
--(id<AWSMobileAnalyticsRequest>) newRequest;
+- (void)addInterceptor:(id<AWSMobileAnalyticsInterceptor>)interceptor;
+- (id<AWSMobileAnalyticsResponse>)execute:(id<AWSMobileAnalyticsRequest>)request
+                              withRetries:(int)retries
+                              withTimeout:(NSTimeInterval)timeout;
+- (id<AWSMobileAnalyticsResponse>)execute:(id<AWSMobileAnalyticsRequest>)request
+                              withRetries:(int)retries
+                              withTimeout:(NSTimeInterval)timeout
+                         withRetryHandler:(RetryHandler)handler;
+- (id<AWSMobileAnalyticsRequest>)freshRequest;
 
 @end

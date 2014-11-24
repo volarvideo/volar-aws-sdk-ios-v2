@@ -22,9 +22,13 @@ typedef NS_ENUM(NSInteger, AWSS3TransferManagerErrorType) {
     AWSS3TransferManagerErrorCancelled,
     AWSS3TransferManagerErrorPaused,
     AWSS3TransferManagerErrorCompleted,
+    AWSS3TransferManagerErrorInternalInConsistency,
+    AWSS3TransferManagerErrorMissingRequiredParameters,
+    AWSS3TransferManagerErrorInvalidParameters,
 };
 
 typedef NS_ENUM(NSInteger, AWSS3TransferManagerRequestState) {
+    AWSS3TransferManagerRequestStateNotStarted,
     AWSS3TransferManagerRequestStateRunning,
     AWSS3TransferManagerRequestStatePaused,
     AWSS3TransferManagerRequestStateCanceling,
@@ -45,11 +49,18 @@ typedef void (^AWSS3TransferManagerResumeAllBlock) (AWSRequest *request);
  */
 @interface AWSS3TransferManager : AWSService
 
-@property (nonatomic, strong, readonly) AWSS3 *s3;
-
 + (instancetype)defaultS3TransferManager;
 
-- (instancetype)initWithS3:(AWSS3 *)s3;
+/**
+ *  Returns an instance of this service client using `configuration` and `identifier`.
+ *
+ *  @param configuration An object to configure the internal `AWSS3`. At least `regionType` and `credentialsProvider` need to be set.
+ *  @param identifier    An unique identifier for AWSS3TransferManager to create a disk cache. Multiple instances with the same identifier are allowed and can safely access the same data on disk.
+ *
+ *  @return An instance of this service client.
+ */
+- (instancetype)initWithConfiguration:(AWSServiceConfiguration *)configuration
+                           identifier:(NSString *)identifier;
 
 /**
  *  Schedules a new transfer to upload data to Amazon S3.

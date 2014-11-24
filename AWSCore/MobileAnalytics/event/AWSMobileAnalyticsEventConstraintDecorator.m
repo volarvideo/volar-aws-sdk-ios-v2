@@ -15,7 +15,7 @@
 
 #import "AWSMobileAnalyticsEventConstraintDecorator.h"
 #import "AWSMobileAnalyticsStringUtils.h"
-#import "AZLogging.h"
+#import "AWSLogging.h"
 
 static int const MAX_NUM_OF_METRICS_AND_ATTRIBUTES = 40; //changed from 20 to 40 to parity with Android SDK
 static int const MAX_EVENT_ATTRIBUTE_METRIC_KEY_LENGTH = 50;
@@ -29,14 +29,12 @@ static int const MAX_EVENT_ATTRIBUTE_VALUE_LENGTH = 200;
 
 @implementation AWSMobileAnalyticsEventConstraintDecorator
 
-+(AWSMobileAnalyticsEventConstraintDecorator*) decoratorWithEvent:(id<AWSMobileAnalyticsEvent>) theEvent
-{
++ (instancetype)decoratorWithEvent:(id<AWSMobileAnalyticsEvent>)theEvent {
     return [[AWSMobileAnalyticsEventConstraintDecorator alloc] initWithEvent:theEvent withMaxAttributesAndMetrics:MAX_NUM_OF_METRICS_AND_ATTRIBUTES];
 }
 
--(AWSMobileAnalyticsEventConstraintDecorator*) initWithEvent:(id<AWSMobileAnalyticsEvent>) theEvent
-                 withMaxAttributesAndMetrics:(int) theMaxAttributesAndMetrics
-{
+- (instancetype)initWithEvent:(id<AWSMobileAnalyticsEvent>)theEvent
+  withMaxAttributesAndMetrics:(int)theMaxAttributesAndMetrics {
     if(self = [super init])
     {
         self.decoratedEvent = theEvent;
@@ -78,7 +76,7 @@ static int const MAX_EVENT_ATTRIBUTE_VALUE_LENGTH = 200;
             }
         }
     }
-    
+
 }
 
 -(NSString*) eventType
@@ -122,9 +120,9 @@ static int const MAX_EVENT_ATTRIBUTE_VALUE_LENGTH = 200;
     NSString* trimmedKey = [AWSMobileAnalyticsStringUtils clipString:theKey toMaxChars:MAX_EVENT_ATTRIBUTE_METRIC_KEY_LENGTH andAppendEllipses:NO];
     if(trimmedKey.length < theKey.length)
     {
-        AZLogWarn(@"The %@ key has been trimmed to a length of %0d characters", theType, MAX_EVENT_ATTRIBUTE_METRIC_KEY_LENGTH);
+        AWSLogWarn(@"The %@ key has been trimmed to a length of %0d characters", theType, MAX_EVENT_ATTRIBUTE_METRIC_KEY_LENGTH);
     }
-    
+
     return trimmedKey;
 }
 
@@ -133,9 +131,9 @@ static int const MAX_EVENT_ATTRIBUTE_VALUE_LENGTH = 200;
     NSString* trimmedValue = [AWSMobileAnalyticsStringUtils clipString:theValue toMaxChars:MAX_EVENT_ATTRIBUTE_VALUE_LENGTH andAppendEllipses:NO];
     if(trimmedValue.length < theValue.length)
     {
-        AZLogWarn( @"The attribute value has been trimmed to a length of %0d characters", MAX_EVENT_ATTRIBUTE_VALUE_LENGTH);
+        AWSLogWarn( @"The attribute value has been trimmed to a length of %0d characters", MAX_EVENT_ATTRIBUTE_VALUE_LENGTH);
     }
-    
+
     return trimmedValue;
 }
 

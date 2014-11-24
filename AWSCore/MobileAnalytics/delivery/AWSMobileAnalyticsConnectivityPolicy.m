@@ -15,19 +15,19 @@
 
 #import "AWSMobileAnalyticsConnectivityPolicy.h"
 #import "AWSMobileAnalyticsConfigurationKeys.h"
-#import "AZLogging.h"
-static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePolicy.submissionTime";
+#import "AWSLogging.h"
+static NSString* const AWSMobileAnalyticsSubmittedTimeKey = @"AWSMobileAnalyticsSubmissionTimePolicy.submissionTime";
 
 @interface AWSMobileAnalyticsConnectivityPolicy()
 @property(nonatomic)id<AWSMobileAnalyticsConnectivity> connectivity;
-@property(nonatomic)id<AWSMobileAnalyticsConfiguration> configuration;
+@property(nonatomic)id<AWSMobileAnalyticsConfiguring> configuration;
 @property(nonatomic)BOOL allowWan;
 @end
 
 @implementation AWSMobileAnalyticsConnectivityPolicy
 
 +(AWSMobileAnalyticsConnectivityPolicy*)policyWithConnectivity:(id<AWSMobileAnalyticsConnectivity>)connectivity
-                             withConfiguration:(id<AWSMobileAnalyticsConfiguration>)configuration
+                             withConfiguration:(id<AWSMobileAnalyticsConfiguring>)configuration
                                   withAllowWan:(BOOL)allowWan
 {
     return [[AWSMobileAnalyticsConnectivityPolicy alloc]initWithConnectivity:connectivity
@@ -36,7 +36,7 @@ static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePo
 }
 
 -(id)initWithConnectivity:(id<AWSMobileAnalyticsConnectivity>)connectivity
-        withConfiguration:(id<AWSMobileAnalyticsConfiguration>)configuration
+        withConfiguration:(id<AWSMobileAnalyticsConfiguring>)configuration
              withAllowWan:(BOOL)allowWan
 {
     if(self = [super init])
@@ -52,7 +52,7 @@ static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePo
 {
     BOOL isAllowed = NO;
     BOOL canTransmitOnWAN = self.allowWan &&
-                           [self.configuration boolForKey:KeyAllowWANEventDelivery withOptValue:ValueAllowWANEventDelivery];
+                           [self.configuration boolForKey:AWSKeyAllowWANEventDelivery withOptValue:AWSValueAllowWANEventDelivery];
     
     if([self.connectivity isConnected])
     {
@@ -60,7 +60,7 @@ static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePo
     }
     
     if (isAllowed == NO) {
-        AZLogWarn(@"Submission request being dropped because the device doesn't have network connection or allowWAN has been turned off while in Cellular network");
+        AWSLogWarn(@"Submission request being dropped because the device doesn't have network connection or allowWAN has been turned off while in Cellular network");
     }
     return isAllowed;
 }

@@ -29,9 +29,11 @@
 
 - (void)test_contextAttributesNoCustomAttributes
 {
-    AWSMobileAnalyticsIOSClientContext *clientContext = [AWSMobileAnalyticsIOSClientContext defaultClientContext];
+    AWSMobileAnalyticsIOSClientContext *clientContext = [AWSMobileAnalyticsIOSClientContext defaultClientContextWithAppId:@"appId"];
     
     //App details
+    assertThat(clientContext.appId, is(equalTo(@"appId")));
+    
     assertThat(clientContext.appPackageName, is(equalTo(@"Unknown")));
     assertThat(clientContext.appVersion, is(equalTo(@"Unknown")));
     assertThat(clientContext.appPackageName, is(equalTo(@"Unknown")));
@@ -40,7 +42,8 @@
     //Device details
     UIDevice* currentDevice = [UIDevice currentDevice];
     assertThat(clientContext.deviceManufacturer, is(equalTo(@"apple")));
-    assertThat(clientContext.deviceModel, is(equalTo(@"iPhone Simulator")));
+    XCTAssertTrue([clientContext.deviceModel isEqualToString:@"iPhone Simulator"] ||
+                  [clientContext.deviceModel isEqualToString:@"iPad Simulator"]);
     assertThat(clientContext.devicePlatform, is(equalTo(@"iPhone OS")));
     assertThat(clientContext.deviceLocale, is(equalTo([[NSLocale autoupdatingCurrentLocale] localeIdentifier])));
     assertThat(clientContext.deviceModelVersion, is(equalTo([clientContext deviceModelVersionCode])));
@@ -56,9 +59,11 @@
                                        @"key1": @"value1",
                                        @"key2": @"value2"};
     
-    AWSMobileAnalyticsIOSClientContext *clientContext = [AWSMobileAnalyticsIOSClientContext clientContextWithCustomAttributes:customAttributes];
+    AWSMobileAnalyticsIOSClientContext *clientContext = [AWSMobileAnalyticsIOSClientContext clientContextWithCustomAttributes:customAttributes withAppId:@"appId"];
     
     //App details
+    assertThat(clientContext.appId, is(equalTo(@"appId")));
+    
     assertThat(clientContext.appPackageName, is(equalTo(@"Unknown")));
     assertThat(clientContext.appVersion, is(equalTo(@"Unknown")));
     assertThat(clientContext.appPackageName, is(equalTo(@"Unknown")));
@@ -67,7 +72,8 @@
     //Device details
     UIDevice* currentDevice = [UIDevice currentDevice];
     assertThat(clientContext.deviceManufacturer, is(equalTo(@"apple")));
-    assertThat(clientContext.deviceModel, is(equalTo(@"iPhone Simulator")));
+    XCTAssertTrue([clientContext.deviceModel isEqualToString:@"iPhone Simulator"] ||
+                  [clientContext.deviceModel isEqualToString:@"iPad Simulator"]);
     assertThat(clientContext.devicePlatform, is(equalTo(@"iPhone OS")));
     assertThat(clientContext.deviceLocale, is(equalTo([[NSLocale autoupdatingCurrentLocale] localeIdentifier])));
     assertThat(clientContext.deviceModelVersion, is(equalTo([clientContext deviceModelVersionCode])));
@@ -91,21 +97,24 @@
                                        @"key2": @"value2"};
     
     AWSMobileAnalyticsIOSClientContext *clientContext = [AWSMobileAnalyticsIOSClientContext clientContextWithAppVersion:@"appVersion"
-                                                                           withAppBuild:@"appBuild"
-                                                                     withAppPackageName:@"appPackageName"
-                                                                            withAppName:@"appName"
-                                                                   withCustomAttributes:customAttributes];
+                                                                                                           withAppBuild:@"appBuild"
+                                                                                                     withAppPackageName:@"appPackageName"
+                                                                                                            withAppName:@"appName"
+                                                                                                   withCustomAttributes:customAttributes
+                                                                                                              withAppId:@"appId"];
     
     //App details
     assertThat(clientContext.appPackageName, is(equalTo(@"appPackageName")));
     assertThat(clientContext.appVersion, is(equalTo(@"appVersion")));
     assertThat(clientContext.appPackageName, is(equalTo(@"appPackageName")));
     assertThat(clientContext.appName, is(equalTo(@"appName")));
+    assertThat(clientContext.appId, is(equalTo(@"appId")));
     
     //Device details
     UIDevice* currentDevice = [UIDevice currentDevice];
     assertThat(clientContext.deviceManufacturer, is(equalTo(@"apple")));
-    assertThat(clientContext.deviceModel, is(equalTo(@"iPhone Simulator")));
+    XCTAssertTrue([clientContext.deviceModel isEqualToString:@"iPhone Simulator"] ||
+                  [clientContext.deviceModel isEqualToString:@"iPad Simulator"]);
     assertThat(clientContext.devicePlatform, is(equalTo(@"iPhone OS")));
     assertThat(clientContext.deviceLocale, is(equalTo([[NSLocale autoupdatingCurrentLocale] localeIdentifier])));
     assertThat(clientContext.deviceModelVersion, is(equalTo([clientContext deviceModelVersionCode])));

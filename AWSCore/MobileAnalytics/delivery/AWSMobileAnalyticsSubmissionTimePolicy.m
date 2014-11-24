@@ -14,8 +14,8 @@
  */
 
 #import "AWSMobileAnalyticsSubmissionTimePolicy.h"
-#import "AZLogging.h"
-static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePolicy.submissionTime";
+#import "AWSLogging.h"
+static NSString* const AWSMobileAnalyticsSubmittedTimeKey = @"AWSMobileAnalyticsSubmissionTimePolicy.submissionTime";
 
 @interface AWSMobileAnalyticsSubmissionTimePolicy()
 @property(nonatomic)id<AWSMobileAnalyticsPreferences> preferences;
@@ -39,7 +39,7 @@ static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePo
         self.preferences = preferences;
         self.waitInterval = waitInterval;
         
-        self.lastSubmittedTime = [self.preferences doubleForKey:SUBMITTED_TIME_KEY withOptValue:0];
+        self.lastSubmittedTime = [self.preferences doubleForKey:AWSMobileAnalyticsSubmittedTimeKey withOptValue:0];
     }
     return self;
 }
@@ -49,7 +49,7 @@ static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePo
     NSTimeInterval timeSinceLastSubmission = [[NSDate date] timeIntervalSince1970] - self.lastSubmittedTime;
     
     if (!(timeSinceLastSubmission > self.waitInterval)) {
-        AZLogWarn(@"Submission request being dropped because it has been submitted too frequently, please try again in %.f seconds.",self.waitInterval - timeSinceLastSubmission);
+        AWSLogWarn(@"Submission request being dropped because it has been submitted too frequently, please try again in %.f seconds.",self.waitInterval - timeSinceLastSubmission);
     }
     return timeSinceLastSubmission > self.waitInterval;
 }
@@ -59,7 +59,7 @@ static NSString* const SUBMITTED_TIME_KEY = @"AWSMobileAnalyticsSubmissionTimePo
     if(attemptSuccesful)
     {
         self.lastSubmittedTime = [[NSDate date] timeIntervalSince1970];
-        [self.preferences putDouble:self.lastSubmittedTime forKey:SUBMITTED_TIME_KEY];
+        [self.preferences putDouble:self.lastSubmittedTime forKey:AWSMobileAnalyticsSubmittedTimeKey];
     }
 }
 

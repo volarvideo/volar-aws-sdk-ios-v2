@@ -36,7 +36,6 @@
     if (error.code == AWSGeneralErrorRequestTimeTooSkewed
         || error.code == AWSGeneralErrorInvalidSignatureException
         || error.code == AWSGeneralErrorRequestExpired
-        || error.code == AWSGeneralErrorSignatureDoesNotMatch
         || error.code == AWSGeneralErrorAuthFailure) {
         return YES;
     }
@@ -44,40 +43,51 @@
     return NO;
 }
 
-- (AZNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
+- (AWSNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
                             response:(NSHTTPURLResponse *)response
                                 data:(NSData *)data
                                error:(NSError *)error {
     if (!self.isClockSkewRetried && [self isClockSkewError:error]) {
         self.isClockSkewRetried = YES;
-        return AZNetworkingRetryTypeShouldCorrectClockSkewAndRetry;
+        return AWSNetworkingRetryTypeShouldCorrectClockSkewAndRetry;
     }
 
     if (currentRetryCount >= self.maxRetryCount) {
-        return AZNetworkingRetryTypeShouldNotRetry;
+        return AWSNetworkingRetryTypeShouldNotRetry;
     }
 
     if ([error.domain isEqualToString:NSURLErrorDomain]) {
         switch (error.code) {
-            case kCFURLErrorNotConnectedToInternet:
-                return AZNetworkingRetryTypeShouldNotRetry;
+            case NSURLErrorCancelled:
+            case NSURLErrorBadURL:
+            case NSURLErrorNotConnectedToInternet:
+
+            case NSURLErrorSecureConnectionFailed:
+            case NSURLErrorServerCertificateHasBadDate:
+            case NSURLErrorServerCertificateUntrusted:
+            case NSURLErrorServerCertificateHasUnknownRoot:
+            case NSURLErrorServerCertificateNotYetValid:
+            case NSURLErrorClientCertificateRejected:
+            case NSURLErrorClientCertificateRequired:
+            case NSURLErrorCannotLoadFromNetwork:
+                return AWSNetworkingRetryTypeShouldNotRetry;
 
             default:
-                return AZNetworkingRetryTypeShouldRetry;
+                return AWSNetworkingRetryTypeShouldRetry;
         }
     }
 
     switch (response.statusCode) {
         case 500:
         case 503:
-            return AZNetworkingRetryTypeShouldRetry;
+            return AWSNetworkingRetryTypeShouldRetry;
             break;
 
         default:
             break;
     }
 
-    return AZNetworkingRetryTypeShouldNotRetry;
+    return AWSNetworkingRetryTypeShouldNotRetry;
 }
 
 - (NSTimeInterval)timeIntervalForRetry:(uint32_t)currentRetryCount

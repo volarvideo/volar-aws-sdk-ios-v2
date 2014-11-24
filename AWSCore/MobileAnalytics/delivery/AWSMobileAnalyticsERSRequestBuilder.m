@@ -27,7 +27,7 @@ static NSString* const CONTENT_ENCODING_KEY = @"Content-Encoding";
 /**************Request Factory****************/
 
 @interface AWSMobileAnalyticsERSRequestBuilder()
-@property(nonatomic)id<AWSMobileAnalyticsConfiguration> configuration;
+@property(nonatomic)id<AWSMobileAnalyticsConfiguring> configuration;
 @property(nonatomic)id<AWSMobileAnalyticsHttpClient> httpClient;
 @property(nonatomic)NSString* applicationKey;
 @property(nonatomic)NSString* uniqueId;
@@ -35,7 +35,7 @@ static NSString* const CONTENT_ENCODING_KEY = @"Content-Encoding";
 
 @implementation AWSMobileAnalyticsERSRequestBuilder
 
-+(AWSMobileAnalyticsERSRequestBuilder *)builderWithConfiguration:(id<AWSMobileAnalyticsConfiguration>)configuration
++(AWSMobileAnalyticsERSRequestBuilder *)builderWithConfiguration:(id<AWSMobileAnalyticsConfiguring>)configuration
                                   withHttpClient:(id<AWSMobileAnalyticsHttpClient>)httpClient
                               withApplicationKey:(NSString*)applicationKey
                                     withUniqueId:(NSString*)uniqueId
@@ -47,7 +47,7 @@ static NSString* const CONTENT_ENCODING_KEY = @"Content-Encoding";
 }
 
 
-- (id)initWithConfiguration:(id<AWSMobileAnalyticsConfiguration>)configuration
+- (id)initWithConfiguration:(id<AWSMobileAnalyticsConfiguring>)configuration
              withHttpClient:(id<AWSMobileAnalyticsHttpClient>)httpClient
          withApplicationKey:(NSString *)applicationKey
                withUniqueId:(NSString*)uniqueId
@@ -65,10 +65,10 @@ static NSString* const CONTENT_ENCODING_KEY = @"Content-Encoding";
 
 - (id<AWSMobileAnalyticsRequest>)buildWithObjects:(NSArray *)theObjects
 {
-    NSString* endpoint = [self.configuration stringForKey:KeyEventRecorderHost withOptValue:ValueEventRecorderHost];
+    NSString* endpoint = [self.configuration stringForKey:AWSKeyEventRecorderHost withOptValue:AWSValueEventRecorderHost];
     NSString* appEndpoint = [NSString stringWithFormat:ENDPOINT_PATH, endpoint];
     
-    id<AWSMobileAnalyticsRequest> request = [self.httpClient newRequest];
+    id<AWSMobileAnalyticsRequest> request = [self.httpClient freshRequest];
     [request setUrl:[NSURL URLWithString:appEndpoint]];
     
     [request setMethod:POST];

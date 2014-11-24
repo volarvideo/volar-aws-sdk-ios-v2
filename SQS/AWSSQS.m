@@ -15,8 +15,8 @@
 
 #import "AWSSQS.h"
 
-#import "AZNetworking.h"
-#import "AZCategory.h"
+#import "AWSNetworking.h"
+#import "AWSCategory.h"
 #import "AWSSignature.h"
 #import "AWSService.h"
 #import "AWSNetworking.h"
@@ -46,21 +46,21 @@ static NSDictionary *errorCodeDictionary = nil;
                             @"IncompleteSignature" : @(AWSSQSErrorIncompleteSignature),
                             @"InvalidClientTokenId" : @(AWSSQSErrorInvalidClientTokenId),
                             @"MissingAuthenticationToken" : @(AWSSQSErrorMissingAuthenticationToken),
-                            @"BatchEntryIdsNotDistinct" : @(AWSSQSErrorBatchEntryIdsNotDistinct),
-                            @"BatchRequestTooLong" : @(AWSSQSErrorBatchRequestTooLong),
-                            @"EmptyBatchRequest" : @(AWSSQSErrorEmptyBatchRequest),
+                            @"AWS.SimpleQueueService.BatchEntryIdsNotDistinct" : @(AWSSQSErrorBatchEntryIdsNotDistinct),
+                            @"AWS.SimpleQueueService.BatchRequestTooLong" : @(AWSSQSErrorBatchRequestTooLong),
+                            @"AWS.SimpleQueueService.EmptyBatchRequest" : @(AWSSQSErrorEmptyBatchRequest),
                             @"InvalidAttributeName" : @(AWSSQSErrorInvalidAttributeName),
-                            @"InvalidBatchEntryId" : @(AWSSQSErrorInvalidBatchEntryId),
+                            @"AWS.SimpleQueueService.InvalidBatchEntryId" : @(AWSSQSErrorInvalidBatchEntryId),
                             @"InvalidIdFormat" : @(AWSSQSErrorInvalidIdFormat),
                             @"InvalidMessageContents" : @(AWSSQSErrorInvalidMessageContents),
-                            @"MessageNotInflight" : @(AWSSQSErrorMessageNotInflight),
+                            @"AWS.SimpleQueueService.MessageNotInflight" : @(AWSSQSErrorMessageNotInflight),
                             @"OverLimit" : @(AWSSQSErrorOverLimit),
-                            @"QueueDeletedRecently" : @(AWSSQSErrorQueueDeletedRecently),
-                            @"QueueDoesNotExist" : @(AWSSQSErrorQueueDoesNotExist),
-                            @"QueueNameExists" : @(AWSSQSErrorQueueNameExists),
+                            @"AWS.SimpleQueueService.QueueDeletedRecently" : @(AWSSQSErrorQueueDeletedRecently),
+                            @"AWS.SimpleQueueService.NonExistentQueue" : @(AWSSQSErrorQueueDoesNotExist),
+                            @"QueueAlreadyExists" : @(AWSSQSErrorQueueNameExists),
                             @"ReceiptHandleIsInvalid" : @(AWSSQSErrorReceiptHandleIsInvalid),
-                            @"TooManyEntriesInBatchRequest" : @(AWSSQSErrorTooManyEntriesInBatchRequest),
-                            @"UnsupportedOperation" : @(AWSSQSErrorUnsupportedOperation),
+                            @"AWS.SimpleQueueService.TooManyEntriesInBatchRequest" : @(AWSSQSErrorTooManyEntriesInBatchRequest),
+                            @"AWS.SimpleQueueService.UnsupportedOperation" : @(AWSSQSErrorUnsupportedOperation),
                             };
 }
 
@@ -93,7 +93,7 @@ static NSDictionary *errorCodeDictionary = nil;
             if (error) {
                 *error = [NSError errorWithDomain:AWSSQSErrorDomain
                                              code:[errorCodeDictionary[errorInfo[@"Code"]] integerValue]
-                                         userInfo:@{NSLocalizedDescriptionKey :[errorInfo objectForKey:@"Message"]?[errorInfo objectForKey:@"Message"]:[NSNull null]}
+                                         userInfo:errorInfo
                           ];
                 return responseObject;
             }
@@ -101,8 +101,7 @@ static NSDictionary *errorCodeDictionary = nil;
             if (error) {
                 *error = [NSError errorWithDomain:AWSSQSErrorDomain
                                              code:AWSSQSErrorUnknown
-                                         userInfo:@{NSLocalizedDescriptionKey : [NSString stringWithFormat:@"%@ -- %@",[errorInfo objectForKey:@"Code"],[errorInfo objectForKey:@"Message"]?[errorInfo objectForKey:@"Message"]:[NSNull null]]
-                                                    }];
+                                         userInfo:errorInfo];
                 return responseObject;
             }
         }
@@ -125,26 +124,36 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @implementation AWSSQSRequestRetryHandler
 
-- (AZNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
-                            response:(NSHTTPURLResponse *)response
-                                data:(NSData *)data
-                               error:(NSError *)error {
-    AZNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
-                                                response:response
-                                                    data:data
-                                                   error:error];
-    if(retryType == AZNetworkingRetryTypeShouldNotRetry
-       && [error.domain isEqualToString:AWSSQSErrorDomain]
+- (AWSNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
+                             response:(NSHTTPURLResponse *)response
+                                 data:(NSData *)data
+                                error:(NSError *)error {
+    AWSNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
+                                                 response:response
+                                                     data:data
+                                                    error:error];
+    if(retryType == AWSNetworkingRetryTypeShouldNotRetry
        && currentRetryCount < self.maxRetryCount) {
-        switch (error.code) {
-            case AWSSQSErrorIncompleteSignature:
-            case AWSSQSErrorInvalidClientTokenId:
-            case AWSSQSErrorMissingAuthenticationToken:
-                retryType = AZNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
-                break;
+        if ([error.domain isEqualToString:AWSSQSErrorDomain]) {
+            switch (error.code) {
+                case AWSSQSErrorIncompleteSignature:
+                case AWSSQSErrorInvalidClientTokenId:
+                case AWSSQSErrorMissingAuthenticationToken:
+                    retryType = AWSNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
+        } else if ([error.domain isEqualToString:AWSGeneralErrorDomain]) {
+            switch (error.code) {
+                case AWSGeneralErrorSignatureDoesNotMatch:
+                    retryType = AWSNetworkingRetryTypeShouldCorrectClockSkewAndRetry;
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -155,14 +164,19 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @interface AWSRequest()
 
-@property (nonatomic, strong) AZNetworkingRequest *internalRequest;
+@property (nonatomic, strong) AWSNetworkingRequest *internalRequest;
 
 @end
 
 @interface AWSSQS()
 
-@property (nonatomic, strong) AZNetworking *networking;
+@property (nonatomic, strong) AWSNetworking *networking;
 @property (nonatomic, strong) AWSServiceConfiguration *configuration;
+
+@end
+
+@interface AWSServiceConfiguration()
+
 @property (nonatomic, strong) AWSEndpoint *endpoint;
 
 @end
@@ -187,25 +201,25 @@ static NSDictionary *errorCodeDictionary = nil;
     if (self = [super init]) {
         _configuration = [configuration copy];
 
-        _endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
-                                            service:AWSServiceSQS];
+        _configuration.endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
+                                                          service:AWSServiceSQS];
 
         AWSSignatureV4Signer *signer = [AWSSignatureV4Signer signerWithCredentialsProvider:_configuration.credentialsProvider
-                                                                                  endpoint:_endpoint];
+                                                                                  endpoint:_configuration.endpoint];
 
-        _configuration.baseURL = _endpoint.URL;
+        _configuration.baseURL = _configuration.endpoint.URL;
         _configuration.requestInterceptors = @[[AWSNetworkingRequestInterceptor new], signer];
         _configuration.retryHandler = [[AWSSQSRequestRetryHandler alloc] initWithMaximumRetryCount:_configuration.maxRetryCount];
-        _configuration.headers = @{@"Host" : _endpoint.hostName};
+        _configuration.headers = @{@"Host" : _configuration.endpoint.hostName};
 
-        _networking = [AZNetworking networking:_configuration];
+        _networking = [AWSNetworking networking:_configuration];
     }
 
     return self;
 }
 
 - (BFTask *)invokeRequest:(AWSRequest *)request
-               HTTPMethod:(AZHTTPMethod)HTTPMethod
+               HTTPMethod:(AWSHTTPMethod)HTTPMethod
                 URLString:(NSString *) URLString
              targetPrefix:(NSString *)targetPrefix
             operationName:(NSString *)operationName
@@ -214,9 +228,9 @@ static NSDictionary *errorCodeDictionary = nil;
         request = [AWSRequest new];
     }
 
-    AZNetworkingRequest *networkingRequest = request.internalRequest;
+    AWSNetworkingRequest *networkingRequest = request.internalRequest;
     if (request) {
-        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] az_removeNullValues];
+        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] aws_removeNullValues];
     } else {
         networkingRequest.parameters = @{};
     }
@@ -236,7 +250,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)addPermission:(AWSSQSAddPermissionRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"AddPermission"
@@ -245,7 +259,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)changeMessageVisibility:(AWSSQSChangeMessageVisibilityRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"ChangeMessageVisibility"
@@ -254,7 +268,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)changeMessageVisibilityBatch:(AWSSQSChangeMessageVisibilityBatchRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"ChangeMessageVisibilityBatch"
@@ -263,7 +277,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)createQueue:(AWSSQSCreateQueueRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"CreateQueue"
@@ -272,7 +286,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)deleteMessage:(AWSSQSDeleteMessageRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"DeleteMessage"
@@ -281,7 +295,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)deleteMessageBatch:(AWSSQSDeleteMessageBatchRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"DeleteMessageBatch"
@@ -290,7 +304,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)deleteQueue:(AWSSQSDeleteQueueRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"DeleteQueue"
@@ -299,7 +313,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getQueueAttributes:(AWSSQSGetQueueAttributesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetQueueAttributes"
@@ -308,7 +322,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getQueueUrl:(AWSSQSGetQueueUrlRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetQueueUrl"
@@ -317,7 +331,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)listDeadLetterSourceQueues:(AWSSQSListDeadLetterSourceQueuesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"ListDeadLetterSourceQueues"
@@ -326,7 +340,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)listQueues:(AWSSQSListQueuesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"ListQueues"
@@ -335,7 +349,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)receiveMessage:(AWSSQSReceiveMessageRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"ReceiveMessage"
@@ -344,7 +358,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)removePermission:(AWSSQSRemovePermissionRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"RemovePermission"
@@ -353,7 +367,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)sendMessage:(AWSSQSSendMessageRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SendMessage"
@@ -362,7 +376,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)sendMessageBatch:(AWSSQSSendMessageBatchRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SendMessageBatch"
@@ -371,7 +385,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)setQueueAttributes:(AWSSQSSetQueueAttributesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SetQueueAttributes"

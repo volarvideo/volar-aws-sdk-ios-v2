@@ -16,7 +16,7 @@
 #import "AWSMobileAnalyticsInactiveSessionState.h"
 #import "AWSMobileAnalyticsDefaultSessionClient+SessionState.h"
 #import "AWSMobileAnalyticsSession.h"
-#import "AZLogging.h"
+#import "AWSLogging.h"
 
 @implementation AWSMobileAnalyticsInactiveSessionState
 
@@ -26,10 +26,7 @@
 }
 
 -(void)pauseWithSessionClient:(AWSMobileAnalyticsDefaultSessionClient *)sessionClient{
-    id<AWSMobileAnalyticsInternalEvent> pauseEvent = [sessionClient.eventClient createInternalEvent:SESSION_PAUSE_EVENT_TYPE];
-    [sessionClient.eventClient recordEvent:pauseEvent andApplyGlobalAttributes:YES];
-    
-    AZLogVerbose( @"Session Pause Failed: No session is running.");
+    AWSLogDebug( @"Session Pause Failed: No session is running.");
 }
 
 -(void)startWithSessionClient:(AWSMobileAnalyticsDefaultSessionClient *)sessionClient{
@@ -38,15 +35,15 @@
 }
 
 -(void)stopWithSessionClient:(AWSMobileAnalyticsDefaultSessionClient *)sessionClient{
-    AZLogVerbose( @"Session Stop Failed: No session is running.");
+    AWSLogDebug( @"Session Stop Failed: No session is running.");
 }
 
 -(void)enterStateWithSessionClient:(AWSMobileAnalyticsDefaultSessionClient *)sessionClient{
-    AZLogVerbose( @"Session State: Entering Inactive State.");
+    AWSLogDebug( @"Session State: Entering Inactive State.");
 }
 
 -(void)exitStateWithSessionClient:(AWSMobileAnalyticsDefaultSessionClient *)sessionClient{
-    AZLogVerbose( @"Session State: Exiting Inactive State.");
+    AWSLogDebug( @"Session State: Exiting Inactive State.");
 }
 
 @end

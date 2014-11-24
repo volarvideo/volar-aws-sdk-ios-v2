@@ -13,8 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#if AWS_TEST_SQS
-
 #import <XCTest/XCTest.h>
 #import "SQS.h"
 #import "AWSTestUtility.h"
@@ -53,7 +51,7 @@
 
         if (task.result) {
             AWSSQSListQueuesResult *listQueuesResult = task.result;
-            AZLogDebug(@"[%@]", listQueuesResult);
+            AWSLogDebug(@"[%@]", listQueuesResult);
             XCTAssertNotNil(listQueuesResult.queueUrls);
         }
 
@@ -74,5 +72,3 @@
 }
 
 @end
-
-#endif

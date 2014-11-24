@@ -15,8 +15,8 @@
 
 #import "AWSSES.h"
 
-#import "AZNetworking.h"
-#import "AZCategory.h"
+#import "AWSNetworking.h"
+#import "AWSCategory.h"
 #import "AWSSignature.h"
 #import "AWSService.h"
 #import "AWSNetworking.h"
@@ -78,7 +78,7 @@ static NSDictionary *errorCodeDictionary = nil;
             if (error) {
                 *error = [NSError errorWithDomain:AWSSESErrorDomain
                                              code:[errorCodeDictionary[errorInfo[@"Code"]] integerValue]
-                                         userInfo:@{NSLocalizedDescriptionKey :[errorInfo objectForKey:@"Message"]?[errorInfo objectForKey:@"Message"]:[NSNull null]}
+                                         userInfo:errorInfo
                           ];
                 return responseObject;
             }
@@ -86,8 +86,7 @@ static NSDictionary *errorCodeDictionary = nil;
             if (error) {
                 *error = [NSError errorWithDomain:AWSSESErrorDomain
                                              code:AWSSESErrorUnknown
-                                         userInfo:@{NSLocalizedDescriptionKey : [NSString stringWithFormat:@"%@ -- %@",[errorInfo objectForKey:@"Code"],[errorInfo objectForKey:@"Message"]?[errorInfo objectForKey:@"Message"]:[NSNull null]]
-                                                    }];
+                                         userInfo:errorInfo];
                 return responseObject;
             }
         }
@@ -110,26 +109,36 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @implementation AWSSESRequestRetryHandler
 
-- (AZNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
-                            response:(NSHTTPURLResponse *)response
-                                data:(NSData *)data
-                               error:(NSError *)error {
-    AZNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
-                                                response:response
-                                                    data:data
-                                                   error:error];
-    if(retryType == AZNetworkingRetryTypeShouldNotRetry
-       && [error.domain isEqualToString:AWSSESErrorDomain]
+- (AWSNetworkingRetryType)shouldRetry:(uint32_t)currentRetryCount
+                             response:(NSHTTPURLResponse *)response
+                                 data:(NSData *)data
+                                error:(NSError *)error {
+    AWSNetworkingRetryType retryType = [super shouldRetry:currentRetryCount
+                                                 response:response
+                                                     data:data
+                                                    error:error];
+    if(retryType == AWSNetworkingRetryTypeShouldNotRetry
        && currentRetryCount < self.maxRetryCount) {
-        switch (error.code) {
-            case AWSSESErrorIncompleteSignature:
-            case AWSSESErrorInvalidClientTokenId:
-            case AWSSESErrorMissingAuthenticationToken:
-                retryType = AZNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
-                break;
+        if ([error.domain isEqualToString:AWSSESErrorDomain]) {
+            switch (error.code) {
+                case AWSSESErrorIncompleteSignature:
+                case AWSSESErrorInvalidClientTokenId:
+                case AWSSESErrorMissingAuthenticationToken:
+                    retryType = AWSNetworkingRetryTypeShouldRefreshCredentialsAndRetry;
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
+        } else if ([error.domain isEqualToString:AWSGeneralErrorDomain]) {
+            switch (error.code) {
+                case AWSGeneralErrorSignatureDoesNotMatch:
+                    retryType = AWSNetworkingRetryTypeShouldCorrectClockSkewAndRetry;
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -140,14 +149,19 @@ static NSDictionary *errorCodeDictionary = nil;
 
 @interface AWSRequest()
 
-@property (nonatomic, strong) AZNetworkingRequest *internalRequest;
+@property (nonatomic, strong) AWSNetworkingRequest *internalRequest;
 
 @end
 
 @interface AWSSES()
 
-@property (nonatomic, strong) AZNetworking *networking;
+@property (nonatomic, strong) AWSNetworking *networking;
 @property (nonatomic, strong) AWSServiceConfiguration *configuration;
+
+@end
+
+@interface AWSServiceConfiguration()
+
 @property (nonatomic, strong) AWSEndpoint *endpoint;
 
 @end
@@ -172,25 +186,25 @@ static NSDictionary *errorCodeDictionary = nil;
     if (self = [super init]) {
         _configuration = [configuration copy];
 
-        _endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
-                                            service:AWSServiceSES];
+        _configuration.endpoint = [AWSEndpoint endpointWithRegion:_configuration.regionType
+                                                          service:AWSServiceSES];
 
         AWSSignatureV4Signer *signer = [AWSSignatureV4Signer signerWithCredentialsProvider:_configuration.credentialsProvider
-                                                                                  endpoint:_endpoint];
+                                                                                  endpoint:_configuration.endpoint];
 
-        _configuration.baseURL = _endpoint.URL;
+        _configuration.baseURL = _configuration.endpoint.URL;
         _configuration.requestInterceptors = @[[AWSNetworkingRequestInterceptor new], signer];
         _configuration.retryHandler = [[AWSSESRequestRetryHandler alloc] initWithMaximumRetryCount:_configuration.maxRetryCount];
-        _configuration.headers = @{@"Host" : _endpoint.hostName};
+        _configuration.headers = @{@"Host" : _configuration.endpoint.hostName};
 
-        _networking = [AZNetworking networking:_configuration];
+        _networking = [AWSNetworking networking:_configuration];
     }
 
     return self;
 }
 
 - (BFTask *)invokeRequest:(AWSRequest *)request
-               HTTPMethod:(AZHTTPMethod)HTTPMethod
+               HTTPMethod:(AWSHTTPMethod)HTTPMethod
                 URLString:(NSString *) URLString
              targetPrefix:(NSString *)targetPrefix
             operationName:(NSString *)operationName
@@ -199,9 +213,9 @@ static NSDictionary *errorCodeDictionary = nil;
         request = [AWSRequest new];
     }
 
-    AZNetworkingRequest *networkingRequest = request.internalRequest;
+    AWSNetworkingRequest *networkingRequest = request.internalRequest;
     if (request) {
-        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] az_removeNullValues];
+        networkingRequest.parameters = [[MTLJSONAdapter JSONDictionaryFromModel:request] aws_removeNullValues];
     } else {
         networkingRequest.parameters = @{};
     }
@@ -221,7 +235,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)deleteIdentity:(AWSSESDeleteIdentityRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"DeleteIdentity"
@@ -230,7 +244,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)deleteVerifiedEmailAddress:(AWSSESDeleteVerifiedEmailAddressRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"DeleteVerifiedEmailAddress"
@@ -239,7 +253,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getIdentityDkimAttributes:(AWSSESGetIdentityDkimAttributesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetIdentityDkimAttributes"
@@ -248,7 +262,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getIdentityNotificationAttributes:(AWSSESGetIdentityNotificationAttributesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetIdentityNotificationAttributes"
@@ -257,7 +271,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getIdentityVerificationAttributes:(AWSSESGetIdentityVerificationAttributesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetIdentityVerificationAttributes"
@@ -266,7 +280,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getSendQuota:(AWSRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetSendQuota"
@@ -275,7 +289,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)getSendStatistics:(AWSRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"GetSendStatistics"
@@ -284,7 +298,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)listIdentities:(AWSSESListIdentitiesRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"ListIdentities"
@@ -293,7 +307,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)listVerifiedEmailAddresses:(AWSRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"ListVerifiedEmailAddresses"
@@ -302,7 +316,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)sendEmail:(AWSSESSendEmailRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SendEmail"
@@ -311,7 +325,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)sendRawEmail:(AWSSESSendRawEmailRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SendRawEmail"
@@ -320,7 +334,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)setIdentityDkimEnabled:(AWSSESSetIdentityDkimEnabledRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SetIdentityDkimEnabled"
@@ -329,7 +343,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)setIdentityFeedbackForwardingEnabled:(AWSSESSetIdentityFeedbackForwardingEnabledRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SetIdentityFeedbackForwardingEnabled"
@@ -338,7 +352,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)setIdentityNotificationTopic:(AWSSESSetIdentityNotificationTopicRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"SetIdentityNotificationTopic"
@@ -347,7 +361,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)verifyDomainDkim:(AWSSESVerifyDomainDkimRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"VerifyDomainDkim"
@@ -356,7 +370,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)verifyDomainIdentity:(AWSSESVerifyDomainIdentityRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"VerifyDomainIdentity"
@@ -365,7 +379,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)verifyEmailAddress:(AWSSESVerifyEmailAddressRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"VerifyEmailAddress"
@@ -374,7 +388,7 @@ static NSDictionary *errorCodeDictionary = nil;
 
 - (BFTask *)verifyEmailIdentity:(AWSSESVerifyEmailIdentityRequest *)request {
     return [self invokeRequest:request
-                    HTTPMethod:AZHTTPMethodPOST
+                    HTTPMethod:AWSHTTPMethodPOST
                      URLString:@""
                   targetPrefix:@""
                  operationName:@"VerifyEmailIdentity"

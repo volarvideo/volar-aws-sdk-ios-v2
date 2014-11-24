@@ -14,11 +14,10 @@
  */
 
 #import "AWSMobileAnalyticsFileEventStore.h"
-#import "AZLogging.h"
+#import "AWSLogging.h"
 
-NSString * const AIEventsDirectoryName = @"events";
-NSString * const AIEventsFilename = @"eventsFile";
-static NSString *const ENCRYPTION_ALGORITHM = @"AES";
+NSString * const AWSEventsDirectoryName = @"events";
+NSString * const AWSEventsFilename = @"eventsFile";
 
 @implementation AWSMobileAnalyticsFileEventStore
 
@@ -31,7 +30,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
     
     if(theContext == nil)
     {
-        AZLogError( @"Could not construct the AWSMobileAnalyticsFileEventStore because the context was nil");
+        AWSLogError( @"Could not construct the AWSMobileAnalyticsFileEventStore because the context was nil");
         return nil;
     }
    
@@ -47,7 +46,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
         NSAssert(theContext != nil, @"The context must not be nil");
         if(theContext == nil)
         {
-            AZLogError( @"The context must not be nil.");
+            AWSLogError( @"The context must not be nil.");
             return nil;
         }
         self.context = theContext;
@@ -55,11 +54,11 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
         self.lock = [[NSRecursiveLock alloc] init];
 
         NSError* error;
-		AWSMobileAnalyticsFile *eventsDirectory = [fileManager createDirectory:AIEventsDirectoryName error:&error];
+		AWSMobileAnalyticsFile *eventsDirectory = [fileManager createDirectory:AWSEventsDirectoryName error:&error];
         NSAssert(error == nil, @"There should not be an error when creating the events directory. Error: %@", [error localizedDescription]);
         if(error != nil || eventsDirectory == nil || ![eventsDirectory exists])
         {
-            AZLogError( @"Unable to create events directory - An error occurred while attempting to create the events directory. Error: %@", [error localizedDescription]);
+            AWSLogError( @"Unable to create events directory - An error occurred while attempting to create the events directory. Error: %@", [error localizedDescription]);
             return nil;
         }
         
@@ -68,7 +67,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
         NSAssert(error == nil, @"There should not be an error when creating the events file. Error: %@", [error localizedDescription]);
         if(error != nil || self.eventsFile == nil || ![self.eventsFile exists])
         {
-            AZLogError( @"Unable to open events file - An error occurred while attempting to create/open the events file. Error: %@", [error localizedDescription]);
+            AWSLogError( @"Unable to open events file - An error occurred while attempting to create/open the events file. Error: %@", [error localizedDescription]);
             return nil;
         }
         
@@ -79,7 +78,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
 
 -(NSString *) eventsFileName
 {
-    return [AIEventsDirectoryName stringByAppendingPathComponent:AIEventsFilename];
+    return [AWSEventsDirectoryName stringByAppendingPathComponent:AWSEventsFilename];
 }
 
 -(BOOL) put:(NSString *) theEvent withError:(NSError **) theError
@@ -93,23 +92,23 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
         [self tryInitializeWriter:&writer error:&error];
         if(error != nil || writer == nil)
         {
-            AZLogError( @"Unable to write event to file - There was an error while attempting to create the writer. Error: %@", [error localizedDescription]);
+            AWSLogError( @"Unable to write event to file - There was an error while attempting to create the writer. Error: %@", [error localizedDescription]);
             [AWSMobileAnalyticsErrorUtils safeSetError:theError withError:error];
             return NO;
         }
-        int maxStorageSize = [self.context.configuration intForKey:KeyMaxStorageSize withOptValue:ValueMaxStorageSize];
+        int maxStorageSize = [self.context.configuration intForKey:AWSKeyMaxStorageSize withOptValue:AWSValueMaxStorageSize];
         if([theEvent length] + [self.eventsFile length] <= maxStorageSize)
         {
             [writer writeLine:theEvent error:&error];
         }
         else
         {
-            AZLogError( @"The events file exceeded its allowed size of %d bytes.", maxStorageSize);
+            AWSLogError( @"The events file exceeded its allowed size of %d bytes.", maxStorageSize);
         }
         
         if(error != nil)
         {
-            AZLogError( @"Unable to write event to file - There was an error while attempting to write to the writer. Error: %@", [error localizedDescription]);
+            AWSLogError( @"Unable to write event to file - There was an error while attempting to write to the writer. Error: %@", [error localizedDescription]);
         }
         [writer close];
     }
@@ -142,7 +141,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
 
 -(id<AWSMobileAnalyticsEventIterator>) iterator
 {
-    return [[AIFileEventIterator alloc] initFileStore:self];
+    return [[AWSFileEventIterator alloc] initFileStore:self];
 }
 
 -(AWSMobileAnalyticsFile *) deleteReadEvents:(int) theLineNumber
@@ -155,7 +154,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
     AWSMobileAnalyticsFile *tempEventsFile = [fileManager createFileWithPath:[self.eventsFileName stringByAppendingString:@".tmp"] error:&error];
     if(error != nil || tempEventsFile == nil || ![tempEventsFile exists])
     {
-        AZLogError( @"There was an error while attempting to create temporary events file. Error: %@", [error localizedDescription]);
+        AWSLogError( @"There was an error while attempting to create temporary events file. Error: %@", [error localizedDescription]);
         return self.eventsFile;
     }
     
@@ -191,18 +190,18 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
         {
             if([origEventsFile deleteFile])
             {
-                if([tempEventsFile renameTo:AIEventsFilename])
+                if([tempEventsFile renameTo:AWSEventsFilename])
                 {
                     self.eventsFile = [fileManager createFileWithPath:self.eventsFileName error:&error];
                 }
                 else
                 {
-                    AZLogError( @"Failed to rename temp file to events file");
+                    AWSLogError( @"Failed to rename temp file to events file");
                 }
             }
             else
             {
-                AZLogError( @"Failed to delete previous events file");
+                AWSLogError( @"Failed to delete previous events file");
             }
         }
         else
@@ -211,7 +210,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
             {
                 if(![tempEventsFile deleteFile])
                 {
-                    AZLogError( @"Failed to delete the empty temp events file");
+                    AWSLogError( @"Failed to delete the empty temp events file");
                 }
             }
         }
@@ -222,7 +221,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
 
 @end
 
-@implementation AIFileEventIterator
+@implementation AWSFileEventIterator
 
 -(id) initFileStore:(AWSMobileAnalyticsFileEventStore *) theEventStore
 {
@@ -252,7 +251,7 @@ static NSString *const ENCRYPTION_ALGORITHM = @"AES";
         
         if(error != nil || inputStream == nil)
         {
-            AZLogError( @"There was an error while attempting to create output stream to event file. Error: %@", [error localizedDescription]);
+            AWSLogError( @"There was an error while attempting to create output stream to event file. Error: %@", [error localizedDescription]);
             return NO;
         }
         
